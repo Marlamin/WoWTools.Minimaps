@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29215.179
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WoWTools.MinimapExtract", "WoWTools.MinimapExtract\WoWTools.MinimapExtract.csproj", "{2643ED40-5F65-4ACF-B644-6126A0420EB6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WoWTools.MinimapExtract", "WoWTools.MinimapExtract\WoWTools.MinimapExtract.csproj", "{2643ED40-5F65-4ACF-B644-6126A0420EB6}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TACT.Net", "TACT.Net\TACT.Net\TACT.Net.csproj", "{78F9216C-7F9A-4D21-AA54-F2BED77B0670}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{2643ED40-5F65-4ACF-B644-6126A0420EB6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2643ED40-5F65-4ACF-B644-6126A0420EB6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2643ED40-5F65-4ACF-B644-6126A0420EB6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{78F9216C-7F9A-4D21-AA54-F2BED77B0670}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{78F9216C-7F9A-4D21-AA54-F2BED77B0670}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{78F9216C-7F9A-4D21-AA54-F2BED77B0670}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{78F9216C-7F9A-4D21-AA54-F2BED77B0670}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
