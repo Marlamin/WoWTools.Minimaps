@@ -1,0 +1,3 @@
+[submodule "TACT.Net"]
+	path = TACT.Net
+	url = https://github.com/wowdev/TACT.Net.git
