@@ -7,9 +7,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WoWTools.MinimapExtract", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TACT.Net", "TACT.Net\TACT.Net\TACT.Net.csproj", "{78F9216C-7F9A-4D21-AA54-F2BED77B0670}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WoWTools.MinimapCompile", "WoWTools.MinimapCompile\WoWTools.MinimapCompile.csproj", "{AE040315-9E0C-4FA2-B3D2-2BAE435DF6F2}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WoWTools.MinimapCompile", "WoWTools.MinimapCompile\WoWTools.MinimapCompile.csproj", "{AE040315-9E0C-4FA2-B3D2-2BAE435DF6F2}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SereniaBLPLib", "SereniaBLPLib\SereniaBLPLib\SereniaBLPLib.csproj", "{CF892AFA-AFA4-4DF9-B2C1-01F73A7A8F8C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DBCD", "DBCD\DBCD\DBCD.csproj", "{95208D77-4E34-46DF-9192-0431E814D918}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DBFileReaderLib", "DBCD\DBFileReaderLib\DBFileReaderLib.csproj", "{80499AB2-3D12-4A8B-A9CB-A8EB61B704EF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +37,14 @@ Global
 		{CF892AFA-AFA4-4DF9-B2C1-01F73A7A8F8C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CF892AFA-AFA4-4DF9-B2C1-01F73A7A8F8C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CF892AFA-AFA4-4DF9-B2C1-01F73A7A8F8C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{95208D77-4E34-46DF-9192-0431E814D918}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{95208D77-4E34-46DF-9192-0431E814D918}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{95208D77-4E34-46DF-9192-0431E814D918}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{95208D77-4E34-46DF-9192-0431E814D918}.Release|Any CPU.Build.0 = Release|Any CPU
+		{80499AB2-3D12-4A8B-A9CB-A8EB61B704EF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80499AB2-3D12-4A8B-A9CB-A8EB61B704EF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80499AB2-3D12-4A8B-A9CB-A8EB61B704EF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80499AB2-3D12-4A8B-A9CB-A8EB61B704EF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
