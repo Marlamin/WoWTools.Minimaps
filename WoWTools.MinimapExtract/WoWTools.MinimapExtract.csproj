@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DBCD\DBCD\DBCD.csproj" />
     <ProjectReference Include="..\TACT.Net\TACT.Net\TACT.Net.csproj" />
   </ItemGroup>
 
