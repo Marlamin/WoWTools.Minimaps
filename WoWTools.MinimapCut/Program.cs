@@ -2,7 +2,7 @@
 using System.IO;
 using NetVips;
 
-namespace WoWTools.MinimapCutter
+namespace WoWTools.MinimapCut
 {
     class Program
     {
@@ -17,12 +17,12 @@ namespace WoWTools.MinimapCutter
             var outdir = args[1];
             var maxzoom = int.Parse(args[2]);
 
-            if (!Directory.Exists(args[1]))
+            if (!Directory.Exists(outdir))
             {
-                Directory.CreateDirectory(args[1]);
+                Directory.CreateDirectory(outdir);
             }
 
-            var image = Image.NewFromFile(args[0]);
+            var image = Image.NewFromFile(inpng);
 
             for (var zoom = maxzoom; zoom > 1; zoom--)
             {
