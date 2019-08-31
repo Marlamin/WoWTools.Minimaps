@@ -26,9 +26,6 @@ namespace WoWTools.MinimapCompile
                 Console.WriteLine("Unsupported BLP source resolution!");
             }
 
-            var bmp = new Bitmap(1, 1);
-            bmp.SetPixel(0, 0, Color.Transparent);
-
             for (var cur_x = 0; cur_x < 64; cur_x++)
             {
                 for (var cur_y = 0; cur_y < 64; cur_y++)
@@ -42,9 +39,7 @@ namespace WoWTools.MinimapCompile
                 }
             }
 
-            var canvasStream = new MemoryStream();
-            bmp.Save(canvasStream, System.Drawing.Imaging.ImageFormat.Tiff);
-            var canvas = NetVips.Image.NewFromBuffer(canvasStream.ToArray());
+            var canvas = NetVips.Image.Black(1, 1);
 
             for (var cur_x = 0; cur_x < 64; cur_x++)
             {
@@ -55,7 +50,7 @@ namespace WoWTools.MinimapCompile
                         var tile = Path.Combine(indir, "map" + cur_x.ToString().PadLeft(2, '0') + "_" + cur_y.ToString().PadLeft(2, '0') + ".blp");
                         if (File.Exists(tile))
                         {
-                            new BlpFile(File.OpenRead(tile)).GetBitmap(0).Save(stream, System.Drawing.Imaging.ImageFormat.Tiff);
+                            new BlpFile(File.OpenRead(tile)).GetBitmap(0).Save(stream, System.Drawing.Imaging.ImageFormat.Png);
                             var image = NetVips.Image.NewFromBuffer(stream.ToArray());
 
                             if (image.Width != blpRes)
