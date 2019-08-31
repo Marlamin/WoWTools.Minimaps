@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using TACT.Net;
 
 namespace DBCD.Providers
@@ -10,7 +8,7 @@ namespace DBCD.Providers
     {
         private TACTRepo tactRepo;
 
-        public TACTDBCProvider(TACTRepo tactRepo) 
+        public TACTDBCProvider(TACTRepo tactRepo)
         {
             this.tactRepo = tactRepo;
         }
@@ -30,7 +28,7 @@ namespace DBCD.Providers
             }
 
             var stream = tactRepo.RootFile.OpenFile(fileDataID, tactRepo);
-            if(stream == null)
+            if (stream == null)
             {
                 throw new Exception("Unable to open file with fileDataID " + fileDataID);
             }
