@@ -38,7 +38,7 @@ namespace WoWTools.MinimapExtract
 
             Console.WriteLine("Loading indices..");
             tactRepo.IndexContainer = new TACT.Net.Indices.IndexContainer();
-            tactRepo.IndexContainer.Open(tactRepo.BaseDirectory);
+            tactRepo.IndexContainer.Open(tactRepo.BaseDirectory, tactRepo.ConfigContainer);
 
             Console.WriteLine("Loading encoding..");
             tactRepo.EncodingFile = new TACT.Net.Encoding.EncodingFile(tactRepo.BaseDirectory, tactRepo.ConfigContainer.EncodingEKey);
