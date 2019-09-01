@@ -71,15 +71,28 @@ namespace WoWTools.MinimapExtract
                 Console.WriteLine(map.Directory);
 
                 // Load WDT
-                if (map.WdtFileDataID == 0)
+                Stream wdtStream;
+
+                try
+                {
+                    if (map.WdtFileDataID == 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("Skipping map " + map.Directory + " with no WDT!");
+                        Console.ResetColor();
+                        continue;
+                    }
+
+                    wdtStream = tactRepo.RootFile.OpenFile((uint)map.WdtFileDataID, tactRepo);
+                }
+                catch (Microsoft.CSharp.RuntimeBinder.RuntimeBinderException e)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("Skipping map " + map.Directory + " with no WDT!");
+                    Console.WriteLine("Older build detected: map record has no wdtFileDataID property");
                     Console.ResetColor();
-                    continue;
+                    wdtStream = tactRepo.RootFile.OpenFile("world/maps/" + map.Directory + "/" + map.Directory + ".wdt", tactRepo);
                 }
-
-                var wdtStream = tactRepo.RootFile.OpenFile((uint)map.WdtFileDataID, tactRepo);
+                
                 if (wdtStream == null)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -89,30 +102,60 @@ namespace WoWTools.MinimapExtract
                 }
 
                 var minimapFDIDs = WDT.FileDataIdsFromWDT(wdtStream);
-                minimapFDIDs = minimapFDIDs.Where(chunk => chunk.fileDataId != 0).ToArray();
-
-                // Extract tiles
-                foreach (var minimap in minimapFDIDs)
+                if(minimapFDIDs.Count() == 0)
                 {
-                    var minimapStream = tactRepo.RootFile.OpenFile(minimap.fileDataId, tactRepo);
-                    if (minimapStream == null)
+                    // Pre-MAID build, extract by filename
+                    for(var x = 0; x < 64; x++)
                     {
-                        Console.ForegroundColor = ConsoleColor.Red;
-                        Console.WriteLine("Unable to extract minimap " + minimap.fileDataId + " for tile " + minimap.x + "_" + minimap.y);
-                        Console.ResetColor();
-                        continue;
-                    }
+                        for(var y = 0; y < 64; y++)
+                        {
+                            string tileName = "world/minimaps/" + map.Directory + "/map" + x.ToString().PadLeft(2, '0') + "_" + y.ToString().PadLeft(2, '0') + ".blp";
+                            var minimapStream = tactRepo.RootFile.OpenFile(tileName, tactRepo);
+                            if (minimapStream == null)
+                            {
+                                continue;
+                            }
 
-                    var minimapName = "map" + minimap.x.ToString().PadLeft(2, '0') + "_" + minimap.y.ToString().PadLeft(2, '0') + ".blp";
-                    var minimapPath = Path.Combine(outdir, "world", "minimaps", map.Directory, minimapName);
+                            var minimapName = "map" + x.ToString().PadLeft(2, '0') + "_" + y.ToString().PadLeft(2, '0') + ".blp";
+                            var minimapPath = Path.Combine(outdir, "world", "minimaps", map.Directory, minimapName);
 
-                    Directory.CreateDirectory(Path.GetDirectoryName(minimapPath));
+                            Directory.CreateDirectory(Path.GetDirectoryName(minimapPath));
 
-                    using (var fileStream = File.Create(minimapPath))
-                    {
-                        minimapStream.CopyTo(fileStream);
+                            using (var fileStream = File.Create(minimapPath))
+                            {
+                                minimapStream.CopyTo(fileStream);
+                            }
+                        }
                     }
                 }
+                else
+                {
+                    // Extract tiles by FDID
+                    minimapFDIDs = minimapFDIDs.Where(chunk => chunk.fileDataId != 0).ToArray();
+                    foreach (var minimap in minimapFDIDs)
+                    {
+                        var minimapStream = tactRepo.RootFile.OpenFile(minimap.fileDataId, tactRepo);
+                        if (minimapStream == null)
+                        {
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            Console.WriteLine("Unable to extract minimap " + minimap.fileDataId + " for tile " + minimap.x + "_" + minimap.y);
+                            Console.ResetColor();
+                            continue;
+                        }
+
+                        var minimapName = "map" + minimap.x.ToString().PadLeft(2, '0') + "_" + minimap.y.ToString().PadLeft(2, '0') + ".blp";
+                        var minimapPath = Path.Combine(outdir, "world", "minimaps", map.Directory, minimapName);
+
+                        Directory.CreateDirectory(Path.GetDirectoryName(minimapPath));
+
+                        using (var fileStream = File.Create(minimapPath))
+                        {
+                            minimapStream.CopyTo(fileStream);
+                        }
+                    }
+                }
+
+                
             }
 
             // Append any filenames from listfile for additional non-WDT referenced minimaps?
