@@ -30,11 +30,11 @@ namespace WoWTools.MinimapExtract
             // Open storage for specific build
             TACTRepo tactRepo = new TACTRepo(cdndir)
             {
-                ConfigContainer = new ConfigContainer("wowt", Locale.US)
+                ConfigContainer = new ConfigContainer()
             };
 
             Console.WriteLine("Loading configs..");
-            tactRepo.ConfigContainer.OpenConfigs(tactRepo.BaseDirectory, bc, cdnc);
+            tactRepo.ConfigContainer.OpenLocal(tactRepo.BaseDirectory, bc, cdnc);
 
             Console.WriteLine("Loading indices..");
             tactRepo.IndexContainer = new TACT.Net.Indices.IndexContainer();
