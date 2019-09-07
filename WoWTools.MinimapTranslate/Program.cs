@@ -30,7 +30,7 @@ namespace WoWTools.MinimapTranslate
                     // Directory
                     var targetDir = line.Remove(0, 5);
 
-                    if (targetDir.Substring(0, 3) == "wmo")
+                    if (targetDir.Substring(0, 3).ToLower() == "wmo")
                         continue;
 
                     if (targetDir.Contains("\\")){
@@ -52,7 +52,7 @@ namespace WoWTools.MinimapTranslate
                     if (line.Length == 0)
                         continue;
 
-                    if(line.Substring(0, 4) == "wmo\\")
+                    if(line.Substring(0, 4).ToLower() == "wmo\\")
                         continue;
 
                     var expl = line.Split('\t');
