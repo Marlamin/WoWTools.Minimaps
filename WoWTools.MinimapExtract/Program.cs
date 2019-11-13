@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using TACT.Net;
 using TACT.Net.Configs;
 
@@ -49,6 +50,33 @@ namespace WoWTools.MinimapExtract
             Console.WriteLine("Loading root..");
             tactRepo.RootFile = new TACT.Net.Root.RootFile(tactRepo.BaseDirectory, rootCEntry.EKey);
 
+            Console.WriteLine("Loading TACT keys..");
+            try
+            {
+                using (var client = new HttpClient())
+                {
+                    var result = client.GetAsync("https://wow.tools/api.php?type=tactkeys").Result;
+                    var keys = result.Content.ReadAsStringAsync().Result.Split('\n');
+                    foreach(var key in keys)
+                    {
+                        var split = key.Split(' ');
+                        if (split.Length < 2)
+                            continue;
+
+                        var keyname = Convert.ToUInt64(split[0], 16);
+                        var keybytes = split[1];
+                        if (TACT.Net.Cryptography.KeyService.TryAddKey(keyname, keybytes))
+                        {
+                            Console.WriteLine("Added TACT key " + split[0]);
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("An error occurred retrieving/loading TACT keys: " + e.Message);
+            }
+
             // Set up DBCD
             var dbdProvider = new GithubDBDProvider();
             var dbcProvider = new TACTDBCProvider(tactRepo);
@@ -92,7 +120,7 @@ namespace WoWTools.MinimapExtract
                     Console.ResetColor();
                     wdtStream = tactRepo.RootFile.OpenFile("world/maps/" + map.Directory + "/" + map.Directory + ".wdt", tactRepo);
                 }
-                
+
                 if (wdtStream == null)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
@@ -102,12 +130,12 @@ namespace WoWTools.MinimapExtract
                 }
 
                 var minimapFDIDs = WDT.FileDataIdsFromWDT(wdtStream);
-                if(minimapFDIDs.Count() == 0)
+                if (minimapFDIDs.Count() == 0)
                 {
                     // Pre-MAID build, extract by filename
-                    for(var x = 0; x < 64; x++)
+                    for (var x = 0; x < 64; x++)
                     {
-                        for(var y = 0; y < 64; y++)
+                        for (var y = 0; y < 64; y++)
                         {
                             string tileName = "world/minimaps/" + map.Directory + "/map" + x.ToString().PadLeft(2, '0') + "_" + y.ToString().PadLeft(2, '0') + ".blp";
                             var minimapStream = tactRepo.RootFile.OpenFile(tileName, tactRepo);
@@ -155,7 +183,7 @@ namespace WoWTools.MinimapExtract
                     }
                 }
 
-                
+
             }
 
             // Append any filenames from listfile for additional non-WDT referenced minimaps?
