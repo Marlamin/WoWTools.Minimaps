@@ -3,7 +3,7 @@ using System;
 using System.Drawing;
 using System.IO;
 
-namespace WoWTools.MinimapCompile
+namespace WoWTools.MinimapCompileWMO
 {
     class Program
     {
