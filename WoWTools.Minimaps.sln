@@ -17,8 +17,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WoWTools.MinimapCut", "WoWT
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WoWTools.MinimapTranslate", "WoWTools.MinimapTranslate\WoWTools.MinimapTranslate.csproj", "{35FE1588-FED7-4824-AB1D-E92EEDE3AE1B}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WowTools.DeamonMapCompile", "WowTools.DeamonMapCompile\WowTools.DeamonMapCompile.csproj", "{5ABAEB45-2DB8-437C-AC86-4C5AEDB67757}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WoWTools.MinimapCompileWMO", "WoWTools.MinimapCompileWMO\WoWTools.MinimapCompileWMO.csproj", "{600263BA-D07B-40F2-95C4-8E3D72476603}"
 EndProject
 Global
@@ -55,10 +53,6 @@ Global
 		{35FE1588-FED7-4824-AB1D-E92EEDE3AE1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{35FE1588-FED7-4824-AB1D-E92EEDE3AE1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{35FE1588-FED7-4824-AB1D-E92EEDE3AE1B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5ABAEB45-2DB8-437C-AC86-4C5AEDB67757}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5ABAEB45-2DB8-437C-AC86-4C5AEDB67757}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5ABAEB45-2DB8-437C-AC86-4C5AEDB67757}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5ABAEB45-2DB8-437C-AC86-4C5AEDB67757}.Release|Any CPU.Build.0 = Release|Any CPU
 		{600263BA-D07B-40F2-95C4-8E3D72476603}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{600263BA-D07B-40F2-95C4-8E3D72476603}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{600263BA-D07B-40F2-95C4-8E3D72476603}.Release|Any CPU.ActiveCfg = Release|Any CPU

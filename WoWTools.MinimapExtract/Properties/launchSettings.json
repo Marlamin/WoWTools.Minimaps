@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "WoWTools.MinimapExtract": {
-      "commandName": "Project",
-      "commandLineArgs": "\"E:/CDN\" dbf21656d4e6691daee053017923d3fb ba42282b283c46f43b96dc4c3465f321 out"
-    }
-  }
-}
