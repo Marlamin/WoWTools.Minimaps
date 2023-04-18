@@ -19,6 +19,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WoWTools.MinimapTranslate",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WoWTools.MinimapCompileWMO", "WoWTools.MinimapCompileWMO\WoWTools.MinimapCompileWMO.csproj", "{600263BA-D07B-40F2-95C4-8E3D72476603}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CascLib", "CascLib\CascLib\CascLib.csproj", "{FE7C64DB-F18A-4642-AE15-F252082872DA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -57,6 +59,10 @@ Global
 		{600263BA-D07B-40F2-95C4-8E3D72476603}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{600263BA-D07B-40F2-95C4-8E3D72476603}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{600263BA-D07B-40F2-95C4-8E3D72476603}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE7C64DB-F18A-4642-AE15-F252082872DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE7C64DB-F18A-4642-AE15-F252082872DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE7C64DB-F18A-4642-AE15-F252082872DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE7C64DB-F18A-4642-AE15-F252082872DA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

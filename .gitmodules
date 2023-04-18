@@ -4,3 +4,6 @@
 [submodule "DBCD"]
 	path = DBCD
 	url = https://github.com/wowdev/DBCD.git
+[submodule "CascLib"]
+	path = CascLib
+	url = https://github.com/WoW-Tools/CascLib
