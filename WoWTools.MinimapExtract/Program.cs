@@ -182,8 +182,6 @@ namespace WoWTools.MinimapExtract
                         }
                     }
                 }
-
-
             }
 
             // Append any filenames from listfile for additional non-WDT referenced minimaps?

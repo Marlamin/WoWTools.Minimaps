@@ -31,7 +31,7 @@ namespace WoWTools.MinimapCut
 
                 if (zoom != maxzoom)
                 {
-                    image = image.Resize(0.5, "VIPS_KERNEL_NEAREST");
+                    image = image.Resize(0.5, Enums.Kernel.Nearest);
                 }
 
                 var width = image.Width;
@@ -48,7 +48,7 @@ namespace WoWTools.MinimapCut
                     height = (height - (height % 256) + 256);
                 }
 
-                image = image.Gravity("VIPS_COMPASS_DIRECTION_NORTH_WEST", width, height);
+                image = image.Gravity(Enums.CompassDirection.NorthWest, width, height);
 
                 var w = 0;
                 for (var x = 0; x < width; x += 256)

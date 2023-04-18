@@ -11,7 +11,7 @@ namespace WoWTools.MinimapCompile
         {
             if (args.Length < 3)
             {
-                throw new Exception("Not enough arguments, need indir, outpng, res (256 or 512)");
+                throw new Exception("Not enough arguments, need indir, outpng, res (256 or 512 or 1024)");
             }
 
             var min_x = 64;
@@ -21,7 +21,7 @@ namespace WoWTools.MinimapCompile
             var outpng = args[1];
             var blpRes = int.Parse(args[2]);
 
-            if (blpRes != 512 && blpRes != 256)
+            if (blpRes != 1024 && blpRes != 512 && blpRes != 256)
             {
                 Console.WriteLine("Unsupported BLP source resolution!");
             }
