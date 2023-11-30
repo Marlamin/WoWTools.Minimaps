@@ -17,16 +17,16 @@ To extract minimap tiles from the game, you can use any tool that can extract fi
 `(mapFilter)` optional argument to only extract a single map. You can view a list of maps on [wago.tools](https://wago.tools/db2/Map) or [wow.tools](https://wow.tools/dbc/?dbc=map), in both cases the value from the Directory column is used. If not specified, all maps are extracted.
 
 ### Examples
-Extract all minimaps from the `wowt` (Retail PTR) product into folder `out`, streaming files from CDN (slower).
+Extract all minimaps from the `wowt` (Retail PTR) product into folder `out`, streaming files from CDN (slower).  
 ```WoWTools.MinimapExtract.exe wowt out```
 
-Extract all minimaps from the `wowt` (Retail PTR) product into folder `out`, using locally installed files from the `C:\World of Warcraft` directory (faster).
+Extract all minimaps from the `wowt` (Retail PTR) product into folder `out`, using locally installed files from the `C:\World of Warcraft` directory (faster).  
 ```WoWTools.MinimapExtract.exe wowt out "C:\World of Warcraft"```
 
-Extract only map 2444 (Dragon Isles) minimaps from the `wowt` (Retail PTR) product into folder `out`, using locally installed files from the `C:\World of Warcraft` directory.
+Extract only map 2444 (Dragon Isles) minimaps from the `wowt` (Retail PTR) product into folder `out`, using locally installed files from the `C:\World of Warcraft` directory.  
 ```WoWTools.MinimapExtract.exe wowt out "C:\World of Warcraft" 2444```
 
-Extract only map 2444 (Dragon Isles) minimaps from the `wowt` (Retail PTR) product into folder `out`, streaming files from CDN.
+Extract only map 2444 (Dragon Isles) minimaps from the `wowt` (Retail PTR) product into folder `out`, streaming files from CDN.  
 ```WoWTools.MinimapExtract.exe wowt out "" 2444```
 ## Compilation
 To compile minimaps into a giant single PNG you can use the WoWTools.MinimapCompile tool, keep in mind depending on hardware and the size of the map, this may take up to a few minutes.
@@ -38,7 +38,7 @@ To compile minimaps into a giant single PNG you can use the WoWTools.MinimapComp
 `(resolution)` optional/advanced: expected resolution of each minimap tile. 512 by default for modern maps but can also be 256 (older maps) or 1024 (not seen in official minimaps). If resolution is 512 but an input tile is 256x256 it is upscaled, vice versa if resolution is 256 but an input tile is 512x512 it is downscaled. Tiles of 1024x1024 resolution are untouched.
 
 ### Examples
-Compile map 2444 from folder `out\world\minimaps\2444` to `Dragon Isles.png`.
+Compile map 2444 from folder `out\world\minimaps\2444` to `Dragon Isles.png`.  
 `WoWTools.MinimapCompile.exe "out\world\minimaps\2444" "Dragon Isles.png"`.
 
 ## Other tools
