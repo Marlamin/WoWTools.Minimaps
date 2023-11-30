@@ -142,7 +142,7 @@ namespace WoWTools.MinimapExtract
                     Console.WriteLine("Downloading listfile");
 
                     using (var w = new HttpClient())
-                    using (var s = w.GetStreamAsync("https://github.com/wowdev/wow-listfile/raw/master/community-listfile.csv").Result)
+                    using (var s = w.GetStreamAsync("https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv").Result)
                     {
                         using var fs = new FileStream("listfile.csv", FileMode.OpenOrCreate);
                         s.CopyTo(fs);
