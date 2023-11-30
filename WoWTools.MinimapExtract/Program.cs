@@ -4,7 +4,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 
 namespace WoWTools.MinimapExtract
@@ -12,12 +11,13 @@ namespace WoWTools.MinimapExtract
     class Program
     {
         public static Dictionary<int, string> Listfile = new();
+        public static Dictionary<string, int> ListfileReverse = new();
         public static CASCHandler cascHandler;
         static void Main(string[] args)
         {
             if (args.Length < 2)
             {
-                throw new ArgumentException("Required arguments: wowProduct outdir (wowPath)");
+                throw new ArgumentException("Required arguments: wowProduct outdir (wowPath) (mapFilter)");
             }
 
             var wowProduct = args[0];
@@ -39,7 +39,7 @@ namespace WoWTools.MinimapExtract
             CASCConfig.ValidateData = false;
             CASCConfig.ThrowOnFileNotFound = false;
 
-            if (wowPath == null)
+            if (wowPath == null || string.IsNullOrEmpty(wowPath))
             {
                 Console.WriteLine("Initializing CASC from web for program " + wowProduct);
                 cascHandler = CASCHandler.OpenOnlineStorage(wowProduct, "eu");
@@ -57,7 +57,7 @@ namespace WoWTools.MinimapExtract
             cascHandler.Root.SetFlags(LocaleFlags.enUS);
 
             var availableFDIDs = new HashSet<int>();
-            
+
             if (cascHandler.Root is WowTVFSRootHandler wtrh)
                 availableFDIDs = wtrh.RootEntries.Keys.ToHashSet();
             else if (cascHandler.Root is WowRootHandler wrh)
@@ -167,16 +167,19 @@ namespace WoWTools.MinimapExtract
 
                     if (!availableFDIDs.Contains(fdid))
                         continue;
-                    
+
                     if (splitLine[1].StartsWith("world/minimaps") || splitLine[1].EndsWith(".wdt"))
+                    {
                         Listfile[fdid] = splitLine[1];
+                        ListfileReverse[splitLine[1]] = fdid;
+                    }
                 }
             }
             catch (Exception e)
             {
                 Console.WriteLine("An error occurred retrieving/loading listfile: " + e.Message);
             }
-            
+
             // Set up DBCD
             var dbdProvider = new GithubDBDProvider();
             var dbcProvider = new CASCDBCProvider();
@@ -258,6 +261,8 @@ namespace WoWTools.MinimapExtract
                 }
                 else
                 {
+                    List<int> extractedFDIDs = new();
+
                     // Extract tiles by FDID
                     minimapFDIDs = minimapFDIDs.Where(chunk => chunk.fileDataId != 0).ToArray();
                     foreach (var minimap in minimapFDIDs)
@@ -271,6 +276,8 @@ namespace WoWTools.MinimapExtract
                             continue;
                         }
 
+                        extractedFDIDs.Add((int)minimap.fileDataId);
+
                         var minimapName = "map" + minimap.x.ToString().PadLeft(2, '0') + "_" + minimap.y.ToString().PadLeft(2, '0') + ".blp";
                         var minimapPath = Path.Combine(outdir, "world", "minimaps", map.Directory, minimapName);
 
@@ -281,10 +288,43 @@ namespace WoWTools.MinimapExtract
                             minimapStream.CopyTo(fileStream);
                         }
                     }
+
+                    for (var x = 0; x < 64; x++)
+                    {
+                        for (var y = 0; y < 64; y++)
+                        {
+                            string tileName = "world/minimaps/" + map.Directory + "/map" + x.ToString().PadLeft(2, '0') + "_" + y.ToString().PadLeft(2, '0') + ".blp";
+                            if (ListfileReverse.TryGetValue(tileName, out var fdid))
+                            {
+                                if (extractedFDIDs.Contains(fdid))
+                                    continue;
+
+                                var minimapStream = cascHandler.OpenFile(fdid);
+                                if (minimapStream == null)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.WriteLine("Unable to extract minimap " + fdid + " for tile " + x + "_" + y);
+                                    Console.ResetColor();
+                                    continue;
+                                }
+
+                                Console.WriteLine("Extracted non-WDT referenced minimap " + fdid + " for tile " + x + "_" + y);
+                                extractedFDIDs.Add(fdid);
+
+                                var minimapName = "map" + x.ToString().PadLeft(2, '0') + "_" + y.ToString().PadLeft(2, '0') + ".blp";
+                                var minimapPath = Path.Combine(outdir, "world", "minimaps", map.Directory, minimapName);
+
+                                Directory.CreateDirectory(Path.GetDirectoryName(minimapPath));
+
+                                using (var fileStream = File.Create(minimapPath))
+                                {
+                                    minimapStream.CopyTo(fileStream);
+                                }
+                            }
+                        }
+                    }
                 }
             }
-
-            // Append any filenames from listfile for additional non-WDT referenced minimaps?
         }
     }
 }
