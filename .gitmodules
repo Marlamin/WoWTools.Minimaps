@@ -7,3 +7,6 @@
 [submodule "CascLib"]
 	path = CascLib
 	url = https://github.com/WoW-Tools/CascLib
+[submodule "Warcraft.NET"]
+	path = Warcraft.NET
+	url = https://github.com/Marlamin/Warcraft.NET

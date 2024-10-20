@@ -10,7 +10,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\CascLib\CascLib\CascLib.csproj" />
     <ProjectReference Include="..\SereniaBLPLib\SereniaBLPLib\SereniaBLPLib.csproj" />
+    <ProjectReference Include="..\Warcraft.NET\Warcraft.NET\Warcraft.NET.csproj" />
   </ItemGroup>
 
 </Project>
