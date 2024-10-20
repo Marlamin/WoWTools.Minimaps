@@ -6,12 +6,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="DBCD" Version="2.0.3" />
     <PackageReference Include="NetVips" Version="2.4.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\CascLib\CascLib\CascLib.csproj" />
-    <ProjectReference Include="..\DBCD\DBCD\DBCD.csproj" />
   </ItemGroup>
 
 </Project>
