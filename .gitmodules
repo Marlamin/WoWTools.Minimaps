@@ -10,3 +10,6 @@
 [submodule "Warcraft.NET"]
 	path = Warcraft.NET
 	url = https://github.com/Marlamin/Warcraft.NET
+[submodule "TACT.Net"]
+	path = TACT.Net
+	url = https://github.com/wowdev/TACT.Net
