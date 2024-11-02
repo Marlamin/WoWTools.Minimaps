@@ -21,7 +21,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Warcraft.NET", "Warcraft.NE
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TACT.Net", "TACT.Net\TACT.Net\TACT.Net.csproj", "{DB11213A-FDA2-4768-A494-3F6645DFE28E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WoWTools.MinimapExtractTACT", "WoWTools.MinimapExtractTACT\WoWTools.MinimapExtractTACT.csproj", "{D91FA333-533E-40C2-974A-6D4B9791AE7D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WoWTools.MinimapTool", "WoWTools.MinimapTool\WoWTools.MinimapTool.csproj", "{D91FA333-533E-40C2-974A-6D4B9791AE7D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

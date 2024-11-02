@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DBCD" Version="2.0.3" />
+    <PackageReference Include="NetVips" Version="2.4.2" />
+    <PackageReference Include="NetVips.Native" Version="8.15.3" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SereniaBLPLib\SereniaBLPLib\SereniaBLPLib.csproj" />
+    <ProjectReference Include="..\TACT.Net\TACT.Net\TACT.Net.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="manifests\cdns">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="manifests\versions">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

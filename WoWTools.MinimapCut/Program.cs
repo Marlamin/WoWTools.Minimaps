@@ -26,7 +26,6 @@ namespace WoWTools.MinimapCut
 
             for (var zoom = maxzoom; zoom > 1; zoom--)
             {
-
                 Console.WriteLine(zoom);
 
                 if (zoom != maxzoom)
