@@ -315,7 +315,7 @@ namespace WoWTools.MinimapTool
                 currentVersion.maps[mapName].MaxY = max_y.ToString();
 
                 // Decide whether or not to actually extract the minimaps for this map by comparing to files from previous build's map
-                var extractTiles = !previousVersion.maps.ContainsKey(map.Directory);
+                var extractTiles = !previousVersion.maps.ContainsKey(mapName);
 
                 if (!extractTiles)
                 {
@@ -330,7 +330,7 @@ namespace WoWTools.MinimapTool
                             {
                                 if (previousVersion.maps[mapName].TileHashes[x][y] != currentVersion.maps[mapName].TileHashes[x][y])
                                 {
-                                    Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Tile hash mismatch for " + map.Directory + " " + x + " " + y + ", map flagged for extraction.");
+                                    Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Tile hash mismatch for " + mapName + " " + x + " " + y + ", map flagged for extraction.");
 
                                     if (previousVersion.maps[mapName].TileHashes[x][y] == null)
                                     {
@@ -365,7 +365,7 @@ namespace WoWTools.MinimapTool
                         Directory.CreateDirectory(Path.Combine(outdir, "compiled"));
 
                     if (!File.Exists(Path.Combine(outdir, "compiled", mapName + ".png")))
-                        CompileMap(toExtract, map.Directory, outdir, min_x, min_y, max_x, max_y);
+                        CompileMap(toExtract, mapName, outdir, min_x, min_y, max_x, max_y);
                 }
             }
 
