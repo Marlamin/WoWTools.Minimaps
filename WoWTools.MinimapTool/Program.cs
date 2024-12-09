@@ -60,6 +60,9 @@ namespace WoWTools.MinimapTool
 
                             await ProcessRaw(inputFolder, outdir);
                             break;
+                        case "purge":
+                            // TODO: Check all builds in order for any duplicate maps/data that got backfilled in and clean that up
+                            break;
                         default:
                             Console.WriteLine("Unknown sub mode: " + mode);
                             PrintHelp();
@@ -134,15 +137,67 @@ namespace WoWTools.MinimapTool
                     if (buildFilter != "all" && build.version != buildFilter)
                         continue;
 
+                    var buildObj = new Build(build.version);
+
                     builds.Add(new OurBuild
                     {
                         product = product.Key,
-                        build = new Build(build.version),
+                        build = buildObj,
                         build_config = build.build_config,
                         cdn_config = build.cdn_config
                     });
                 }
             }
+
+
+            builds.Add(new OurBuild()
+            {
+                product = "wow_beta",
+                build = new Build("6.0.1.18125"),
+                build_config = "806f4fd265de05a9b328310fcc42eed0",
+                cdn_config = "b225a5d105393ef582066157f7dd34fc"
+            });
+
+            builds.Add(new OurBuild()
+            {
+                product = "wow_beta",
+                build = new Build("6.0.1.18156"),
+                build_config = "8468c48e74b9d437b94eb95fbf2c4dbd",
+                cdn_config = "19742c0a2341a0dd29dcf92e39e81e8e"
+            });
+
+
+            builds.Add(new OurBuild()
+            {
+                product = "wow_beta",
+                build = new Build("6.0.1.18164"),
+                build_config = "d0ef88a73642ac58d3129fefad33ec69",
+                cdn_config = "8decbf9979d0667d7e96f0189fb1bcbc"
+            });
+
+            builds.Add(new OurBuild()
+            {
+                product = "wow_beta",
+                build = new Build("6.0.1.18179"),
+                build_config = "21c40fcbe3a2181df39c42c9d3190564",
+                cdn_config = "441f39cca8ee0b3b94a8101608e2ba0e"
+            });
+
+            builds.Add(new OurBuild()
+            {
+                product = "wow_beta",
+                build = new Build("6.0.1.18297"),
+                build_config = "eb2c81a44bcb438aee7bb150ddf87012",
+                cdn_config = "441f39cca8ee0b3b94a8101608e2ba0e"
+            });
+
+            builds.Add(new OurBuild()
+            {
+                product = "wow_beta",
+                build = new Build("6.0.1.18322"),
+                build_config = "81693b4699edf1a78c110608b8e8264f",
+                cdn_config = "070913e104dcb1dc02c67344b078563c"
+            });
 
             TACTProcessor.Start(baseoutdir, repoPath);
             var cdnConfigs = new List<string>();
@@ -213,10 +268,13 @@ namespace WoWTools.MinimapTool
             TACTProcessor.WarmUpIndexes(cdnConfigs);
 
             var lastRootKey = "";
+
             foreach (var build in builds)
             {
                 var buildConfigPath = TACTProcessor.MakeCDNPath(repoPath, "config", build.build_config);
                 var cdnConfigPath = TACTProcessor.MakeCDNPath(repoPath, "config", build.cdn_config);
+
+                var bbRan = false;
 
                 if (!File.Exists(buildConfigPath) || !File.Exists(cdnConfigPath))
                 {
@@ -252,11 +310,11 @@ namespace WoWTools.MinimapTool
                 Console.WriteLine(build.build + " (" + buildRootKey + ")");
 
                 if (lastRootKey != "" && buildRootKey != lastRootKey)
-                    TACTProcessor.TryLoadVersionManifest(lastRootKey);
+                    TACTProcessor.TryLoadVersionManifest(lastRootKey, true);
 
                 try
                 {
-                    if (!Directory.Exists(Path.Combine(baseoutdir, buildRootKey, "maps")))
+                    if(buildRootKey != lastRootKey)
                         TACTProcessor.ProcessBuild(build.build_config, build.cdn_config, build.product, build.build);
                 }
                 catch (Exception e)

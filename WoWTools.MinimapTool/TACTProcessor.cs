@@ -22,6 +22,8 @@ namespace WoWTools.MinimapTool
         private static VersionManifest previousVersion = new();
         private static VersionManifest currentVersion = new();
 
+        private static JsonSerializerOptions jsonOptions = new() { WriteIndented = true };
+
         public static void Start(string baseOutDir, string repoPath)
         {
             BaseOutDir = baseOutDir;
@@ -82,7 +84,10 @@ namespace WoWTools.MinimapTool
             Console.WriteLine("[" + DateTime.UtcNow.ToString() + "] [TACT] Opening config " + buildConfig + " at " + RepoPath + "...");
             TACTRepo.ConfigContainer.OpenLocal(TACTRepo.BaseDirectory, buildConfig, "");
 
-            var buildMap = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(Path.Combine(BaseOutDir, "buildMap.json")));
+            Dictionary<string, string> buildMap = [];
+
+            if (File.Exists(Path.Combine(BaseOutDir, "buildMap.json")))
+                buildMap = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(Path.Combine(BaseOutDir, "buildMap.json")));
 
             var rootKey = Convert.ToHexString(TACTRepo.ConfigContainer.RootCKey.Value).ToLower();
 
@@ -102,19 +107,42 @@ namespace WoWTools.MinimapTool
                 Console.WriteLine("[" + DateTime.UtcNow.ToString() + "] [TACT] Loaded build: " + buildName);
             }
 
-            buildMap[buildName] = rootKey;
+            if(!buildMap.ContainsKey(buildName))
+                buildMap[buildName] = rootKey;
 
-            currentVersion.version = buildName;
-            currentVersion.product = product;
-            currentVersion.rootCKey = rootKey;
-            currentVersion.maps = new();
+            File.WriteAllText(Path.Combine(BaseOutDir, "buildMap.json"), JsonSerializer.Serialize(buildMap, jsonOptions));
 
             var outdir = Path.Combine(BaseOutDir, rootKey);
+
+            if (!Directory.Exists(outdir))
+                Directory.CreateDirectory(outdir);
+
+            if (!Directory.Exists(Path.Combine(outdir, "maps")))
+                Directory.CreateDirectory(Path.Combine(outdir, "maps"));
+
+            if (!Directory.Exists(Path.Combine(outdir, "compiled")))
+                Directory.CreateDirectory(Path.Combine(outdir, "compiled"));
+
+            currentVersion = new VersionManifest();
+
+            if (File.Exists(Path.Combine(outdir, "versionManifest.json")))
+            {
+                var existingVerison = TryLoadVersionManifest(rootKey, false);
+                if (existingVerison != null)
+                    currentVersion = existingVerison;
+            }
+            else
+            {
+                currentVersion.version = buildName;
+                currentVersion.product = product;
+                currentVersion.rootCKey = rootKey;
+                currentVersion.maps = new();
+            }
 
             //if (Directory.Exists(outdir) && Directory.GetFiles(outdir).Length > 0)
             //{
             //    Console.WriteLine("Output directory already exists, skipping build " + buildName);
-            //    File.WriteAllText(Path.Combine(BaseOutDir, "buildMap.json"), JsonSerializer.Serialize(buildMap, new JsonSerializerOptions { WriteIndented = true }));
+            //    File.WriteAllText(Path.Combine(BaseOutDir, "buildMap.json"), JsonSerializer.Serialize(buildMap, jsonOptions));
             //    return;
             //}
 
@@ -134,32 +162,61 @@ namespace WoWTools.MinimapTool
             // Open Map DBC with local defs
             var mapdb = DBCDInstance.Load("Map", buildName);
 
+            // TODO: This misses maps where minimaps are in the listfile but not in DB2
+
+            var targetMaps = new List<MapTarget>();
+
             foreach (dynamic map in mapdb.Values)
             {
                 var mapName = (string)map.Directory;
+
+                if (!mapdb.AvailableColumns.Contains("WdtFileDataID"))
+                {
+                    targetMaps.Add(new MapTarget { ID = (int)map.ID, MapName = (string)map.MapName_lang, Directory = (string)map.Directory, WdtFileDataID = 0 });
+                }
+                else
+                {
+                    targetMaps.Add(new MapTarget { ID = (int)map.ID, MapName = (string)map.MapName_lang, Directory = (string)map.Directory, WdtFileDataID = (uint)map.WdtFileDataID });
+                }
+            }
+
+            foreach (var map in Listfile.ListfileMaps)
+            {
+                if (targetMaps.Any(m => m.Directory.ToLowerInvariant() == map.ToLowerInvariant()))
+                    continue;
+
+                targetMaps.Add(new MapTarget { ID = -1, MapName = map, Directory = map, WdtFileDataID = 0 });
+            }
+
+            foreach (var targetMap in targetMaps)
+            {
+                var mapName = targetMap.Directory;
+
+                // Yikes
+                if (mapName == "artifact???dalaranvaultacquisition")
+                    continue;
+
                 //if (map.Directory != "PVPZone01")
                 //    continue;
 
                 //if (!string.IsNullOrEmpty(mapFilter) && map.Directory != mapFilter)
                 //    continue;
 
-                Console.WriteLine("[" + DateTime.UtcNow.ToString() + "] " + mapName);
+                if (targetMap.ID != -1)
+                    Console.WriteLine("[" + DateTime.UtcNow.ToString() + "] " + mapName);
 
                 // Load WDT
                 Stream? wdtStream = null;
 
                 try
                 {
-                    if (!mapdb.AvailableColumns.Contains("WdtFileDataID"))
+                    if (targetMap.WdtFileDataID == 0)
                     {
                         wdtStream = TACTRepo.RootFile.OpenFile("world/maps/" + mapName + "/" + mapName + ".wdt", TACTRepo);
                     }
                     else
                     {
-                        if (map.WdtFileDataID != 0)
-                        {
-                            wdtStream = TACTRepo.RootFile.OpenFile((uint)map.WdtFileDataID, TACTRepo);
-                        }
+                        wdtStream = TACTRepo.RootFile.OpenFile(targetMap.WdtFileDataID, TACTRepo);
                     }
                 }
                 catch (Exception e)
@@ -172,6 +229,7 @@ namespace WoWTools.MinimapTool
 
                 Dictionary<(sbyte x, sbyte y), RootRecord> toExtract = [];
 
+                #region Tile finding
                 if (wdtStream != null)
                 {
                     var minimapFDIDs = WDT.FileDataIdsFromWDT(wdtStream);
@@ -231,7 +289,7 @@ namespace WoWTools.MinimapTool
                                 if (toExtract.ContainsKey((x, y)))
                                     continue;
 
-                                if (Listfile.NameToFDIDMap.TryGetValue(tileName, out uint fdid))
+                                if (Listfile.NameToFDIDMap.TryGetValue(tileName.ToLower(), out uint fdid))
                                 {
                                     if (!TACTRepo.RootFile.ContainsFileId(fdid))
                                         continue;
@@ -240,6 +298,7 @@ namespace WoWTools.MinimapTool
                                     if (rootRecord == null)
                                         continue;
 
+                                    //Console.WriteLine("Adding listfile-only tile " + fdid + ": " + mapName + "_" + x + "_" + y);
                                     toExtract.Add((x, y), rootRecord);
                                 }
                             }
@@ -259,7 +318,7 @@ namespace WoWTools.MinimapTool
                             var minimapName = "map" + x.ToString().PadLeft(2, '0') + "_" + y.ToString().PadLeft(2, '0') + ".blp";
                             var tileName = "world/minimaps/" + mapName + "/" + minimapName;
 
-                            if (Listfile.NameToFDIDMap.TryGetValue(tileName, out uint fdid))
+                            if (Listfile.NameToFDIDMap.TryGetValue(tileName.ToLower(), out uint fdid))
                             {
                                 if (!TACTRepo.RootFile.ContainsFileId(fdid))
                                     continue;
@@ -268,29 +327,22 @@ namespace WoWTools.MinimapTool
                                 if (rootRecord == null)
                                     continue;
 
+                                //Console.WriteLine("Adding listfile-only tile " + fdid + ": " + mapName + "_" + x + "_" + y);
                                 toExtract.Add((x, y), rootRecord);
                             }
                         }
                     }
                 }
-
-                // Fill up the current version tile dictionary
-                if (!currentVersion.maps.ContainsKey(mapName))
-                    currentVersion.maps[mapName] = new MapManifest() { MaxX = "-1", MaxY = "-1", MinX = "-1", MinY = "-1", TileHashes = new string[64][] };
-
-                for (byte x = 0; x < 64; x++)
-                    currentVersion.maps[mapName].TileHashes[x] = new string[64];
-
-                if (toExtract.Count == 0)
-                {
-                    Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t No tiles to extract for map " + mapName);
-                    continue;
-                }
+                #endregion
 
                 sbyte min_x = 64;
                 sbyte min_y = 64;
                 sbyte max_x = 0;
                 sbyte max_y = 0;
+
+                var tileHashes = new string[64][];
+                for (byte x = 0; x < 64; x++)
+                    tileHashes[x] = new string[64];
 
                 for (sbyte x = 0; x < 64; x++)
                 {
@@ -304,98 +356,137 @@ namespace WoWTools.MinimapTool
                             if (x > max_x) { max_x = x; }
                             if (y > max_y) { max_y = y; }
 
-                            currentVersion.maps[mapName].TileHashes[x][y] = toExtract[(x, y)].CKey.ToString();
+                            tileHashes[x][y] = toExtract[(x, y)].CKey.ToString();
                         }
                     }
                 }
 
-                currentVersion.maps[mapName].MinX = min_x.ToString();
-                currentVersion.maps[mapName].MinY = min_y.ToString();
-                currentVersion.maps[mapName].MaxX = max_x.ToString();
-                currentVersion.maps[mapName].MaxY = max_y.ToString();
-
-                // Decide whether or not to actually extract the minimaps for this map by comparing to files from previous build's map
-                var extractTiles = !previousVersion.maps.ContainsKey(mapName);
-
-                if (!extractTiles)
+                if (toExtract.Count == 0)
                 {
-                    if (previousVersion == null)
-                        extractTiles = true;
+                    if (targetMap.ID != -1)
+                        Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t No tiles to extract for map " + mapName);
 
-                    if (!extractTiles)
+                    continue;
+                }
+
+                // Check if we need to actually compile this map
+                var compileMap = false;
+
+                var currentVersionMatches = false;
+
+                // Compile map if it doesn't exist in currentVersion & add the map
+                if (!currentVersion.maps.TryGetValue(mapName, out MapManifest? currentMap))
+                {
+                    Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Adding map " + mapName + " to current version");
+
+                    currentVersion.maps.Add(mapName, new MapManifest()
                     {
-                        for (byte x = 0; x < 64; x++)
+                        WDTFileDataID = targetMap.WdtFileDataID != 0 ? (int)targetMap.WdtFileDataID : null,
+                        InternalMapID = targetMap.ID,
+                        MapName = targetMap.MapName,
+                        MaxX = max_x,
+                        MaxY = max_y,
+                        MinX = min_x,
+                        MinY = min_y,
+                        TileHashes = tileHashes
+                    });
+                }
+                else
+                {
+                    // Compile if the map is in the current version manifest but the tile hashes differ
+                    if (DoTilesDiffer(mapName, currentMap.TileHashes, tileHashes))
+                    {
+                        Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Triggering compile for map " + mapName + " as tile hashes differ from current version");
+                        compileMap = true;
+                    }
+                    else
+                    {
+                        currentVersionMatches = true;
+                    }
+
+                    // Set current version tile hashes as we don't need the old ones anymore
+                    currentVersion.maps[mapName].TileHashes = tileHashes;
+                }
+
+                if (!compileMap)
+                {
+                    if (previousVersion != null && previousVersion.maps.TryGetValue(mapName, out var previousMap))
+                    {
+                        // Compile if the map is in the previous version manifest but the tile hashes differ
+                        if (DoTilesDiffer(mapName, previousMap.TileHashes, tileHashes))
                         {
-                            for (byte y = 0; y < 64; y++)
+                            // TODO: This always triggers compiles even if the intended version is already on disk
+                            if (!currentVersionMatches)
                             {
-                                if (previousVersion.maps[mapName].TileHashes[x][y] != currentVersion.maps[mapName].TileHashes[x][y])
-                                {
-                                    Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Tile hash mismatch for " + mapName + " " + x + " " + y + ", map flagged for extraction.");
-
-                                    if (previousVersion.maps[mapName].TileHashes[x][y] == null)
-                                    {
-                                        Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t null != " + currentVersion.maps[mapName].TileHashes[x][y].ToString());
-                                    }
-                                    else if (currentVersion.maps[mapName].TileHashes[x][y] == null)
-                                    {
-                                        Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t " + previousVersion.maps[mapName].TileHashes[x][y] + " != null");
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t " + previousVersion.maps[mapName].TileHashes[x][y] + " != " + currentVersion.maps[mapName].TileHashes[x][y].ToString());
-                                    }
-
-                                    extractTiles = true;
-                                    break;
-                                }
+                                Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Triggering compile for map " + mapName + " as tile hashes differ from previous version");
+                                compileMap = true;
                             }
-
-                            if (extractTiles)
-                                break;
+                            else
+                            {
+                                Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Skipping compile for map " + mapName + ", it was different in previous version but current version already matches what we were going to compile");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Previous version does not have this map or isn't set at all and current version doesn't match
+                        if (!currentVersionMatches)
+                        {
+                            Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Triggering compile for map " + mapName + " as it was not in previous version");
+                            compileMap = true;
+                        }
+                        else
+                        {
+                            //Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Skipping compile for map " + mapName + ", it was not in previous version but matches current version");
                         }
                     }
                 }
 
-                if (extractTiles)
-                {
-                    if (!Directory.Exists(outdir))
-                        Directory.CreateDirectory(outdir);
+                if (compileMap)
+                    CompileMap(toExtract, mapName, outdir, min_x, min_y, max_x, max_y);
 
-                    if (!Directory.Exists(Path.Combine(outdir, "compiled")))
-                        Directory.CreateDirectory(Path.Combine(outdir, "compiled"));
-
-                    if (!File.Exists(Path.Combine(outdir, "compiled", mapName + ".png")))
-                        CompileMap(toExtract, mapName, outdir, min_x, min_y, max_x, max_y);
-                }
+                File.WriteAllText(Path.Combine(outdir, "maps", mapName + ".json"), JsonSerializer.Serialize(currentVersion.maps[mapName], jsonOptions));
             }
+
+            // Don't save maps to version manifest
+            currentVersion.maps = [];
 
             // Save the version manifest
-            if (!Directory.Exists(outdir))
-                Directory.CreateDirectory(outdir);
-
-            if (!Directory.Exists(Path.Combine(outdir, "maps")))
-                Directory.CreateDirectory(Path.Combine(outdir, "maps"));
-
-            File.WriteAllText(Path.Combine(outdir, "versionManifest.json"), JsonSerializer.Serialize(currentVersion, new JsonSerializerOptions { WriteIndented = true }));
-
-            foreach (var mapManifest in currentVersion.maps)
-            {
-                var newMapManifest = new MapManifestNew
-                {
-                    MinX = sbyte.Parse(mapManifest.Value.MinX),
-                    MinY = sbyte.Parse(mapManifest.Value.MinY),
-                    MaxX = sbyte.Parse(mapManifest.Value.MaxX),
-                    MaxY = sbyte.Parse(mapManifest.Value.MaxY),
-                    TileHashes = mapManifest.Value.TileHashes
-                };
-
-                File.WriteAllText(Path.Combine(outdir, "maps", mapManifest.Key + ".json"), JsonSerializer.Serialize(newMapManifest, new JsonSerializerOptions { WriteIndented = true }));
-            }
-
-            previousVersion = currentVersion;
+            File.WriteAllText(Path.Combine(outdir, "versionManifest.json"), JsonSerializer.Serialize(currentVersion, jsonOptions));
 
             // Save the build map
-            File.WriteAllText(Path.Combine(BaseOutDir, "buildMap.json"), JsonSerializer.Serialize(buildMap, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(BaseOutDir, "buildMap.json"), JsonSerializer.Serialize(buildMap, jsonOptions));
+        }
+
+        private static bool DoTilesDiffer(string mapName, string[][] oldTiles, string[][] newTiles)
+        {
+            for (byte x = 0; x < 64; x++)
+            {
+                for (byte y = 0; y < 64; y++)
+                {
+                    if (oldTiles[x][y] != newTiles[x][y])
+                    {
+                        if (oldTiles[x][y] == null)
+                        {
+                            Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t (" + x + "," + y + ") null != " + newTiles[x][y].ToString());
+                            return true;
+                        }
+                        else if (newTiles[x][y] == null)
+                        {
+                            Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t (" + x + "," + y + ") " + oldTiles[x][y] + " != null");
+                            return true;
+                        }
+                        else
+                        {
+                            Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t (" + x + "," + y + ") " + oldTiles[x][y] + " != " + newTiles[x][y].ToString());
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            //Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t All hashes match.");
+            return false;
         }
 
         public static void CompileMap(Dictionary<(sbyte, sbyte), RootRecord> tiles, string mapName, string outDir, sbyte min_x, sbyte min_y, sbyte max_x, sbyte max_y)
@@ -492,30 +583,100 @@ namespace WoWTools.MinimapTool
             // Generate tilesets
             Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Generating tiles..");
             var outdir = Path.Combine(outDir, "tiles", mapName);
+            if(!Directory.Exists(outdir))
+                Directory.CreateDirectory(outdir);
+
             compiled.Dzsave(outdir, mapName, Enums.ForeignDzLayout.Google, ".png", background: [0, 0, 0, 0]);
             Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Done, took " + timer.ElapsedMilliseconds + "ms");
 
             timer.Stop();
         }
 
-        public static void TryLoadVersionManifest(string buildRootKey)
+        public static VersionManifest? TryLoadVersionManifest(string buildRootKey, bool isPrevious)
         {
             var outdir = Path.Combine(BaseOutDir, buildRootKey);
             if (!Directory.Exists(outdir))
-                return;
+                return null;
 
             var versionManifestPath = Path.Combine(outdir, "versionManifest.json");
             if (!File.Exists(versionManifestPath))
-                return;
+                return null;
 
-            previousVersion = JsonSerializer.Deserialize<VersionManifest>(File.ReadAllText(versionManifestPath));
-            Console.WriteLine("Loaded build " + previousVersion.version + " as previous version");
+            var versionManifest = JsonSerializer.Deserialize<VersionManifest>(File.ReadAllText(versionManifestPath));
+            versionManifest.maps = new();
+
+            foreach (var map in Directory.GetFiles(Path.Combine(outdir, "maps"), "*.json"))
+            {
+                MapManifest mapManifest;
+
+                try
+                {
+                    mapManifest = JsonSerializer.Deserialize<MapManifest>(File.ReadAllText(map));
+                }
+                catch (JsonException e)
+                {
+                    Console.WriteLine("Error: Failed to parse map manifest " + map + " in build " + buildRootKey + ", trying to parse as old manifest instead..");
+                    var oldMapManifest = JsonSerializer.Deserialize<MapManifestOld>(File.ReadAllText(map));
+                    mapManifest = new MapManifest
+                    {
+                        MinX = sbyte.Parse(oldMapManifest.MinX),
+                        MinY = sbyte.Parse(oldMapManifest.MinY),
+                        MaxX = sbyte.Parse(oldMapManifest.MaxX),
+                        MaxY = sbyte.Parse(oldMapManifest.MaxY),
+                        MapName = oldMapManifest.MapName,
+                        InternalMapID = oldMapManifest.InternalMapID,
+                        WDTFileDataID = oldMapManifest.WDTFileDataID,
+                        TileHashes = oldMapManifest.TileHashes
+                    };
+
+                    Console.WriteLine("Rewriting old manifest");
+
+                    File.WriteAllText(map, JsonSerializer.Serialize(mapManifest, jsonOptions));
+                }
+
+                var mapName = Path.GetFileNameWithoutExtension(map);
+
+                if (mapManifest == null || (mapManifest.MinX == -1 && mapManifest.MinY == -1 && mapManifest.MaxX == -1 && mapManifest.MaxY == -1))
+                {
+                    //Console.WriteLine("Skipping map " + mapName + " as it has no tiles");
+                }
+                else
+                {
+                    versionManifest.maps[mapName] = new MapManifest
+                    {
+                        MinX = mapManifest.MinX,
+                        MinY = mapManifest.MinY,
+                        MaxX = mapManifest.MaxX,
+                        MaxY = mapManifest.MaxY,
+                        MapName = mapManifest.MapName,
+                        InternalMapID = mapManifest.InternalMapID,
+                        WDTFileDataID = mapManifest.WDTFileDataID,
+                        TileHashes = mapManifest.TileHashes
+                    };
+                }
+            }
+
+            Console.WriteLine("Loaded build " + versionManifest.version + " and " + versionManifest.maps.Count + " maps" + (isPrevious ? " as previous version" : " as current version"));
+
+            if (isPrevious)
+                previousVersion = versionManifest;
+
+            return versionManifest;
         }
+
         public static string MakeCDNPath(string basePath, string subFolder, string hash)
         {
             var path = Path.Combine(basePath, subFolder, hash.Substring(0, 2), hash.Substring(2, 2), hash);
             return path;
         }
+    }
+
+    public record MapTarget
+    {
+        public int ID { get; set; }
+        public string MapName { get; set; }
+        public string Directory { get; set; }
+        public uint WdtFileDataID { get; set; }
     }
 
     public record VersionManifest
@@ -526,21 +687,27 @@ namespace WoWTools.MinimapTool
         public Dictionary<string, MapManifest> maps { get; set; }
     }
 
-    public record MapManifest
+    public record MapManifestOld
     {
         public string MinX { get; set; }
         public string MinY { get; set; }
         public string MaxX { get; set; }
         public string MaxY { get; set; }
+        public string? MapName { get; set; }
+        public int? InternalMapID { get; set; }
+        public int? WDTFileDataID { get; set; }
         public string[][] TileHashes { get; set; }
     }
 
-    public record MapManifestNew
+    public record MapManifest
     {
         public sbyte MinX { get; set; }
         public sbyte MinY { get; set; }
         public sbyte MaxX { get; set; }
         public sbyte MaxY { get; set; }
+        public string? MapName { get; set; }
+        public int? InternalMapID { get; set; }
+        public int? WDTFileDataID { get; set; }
         public string[][] TileHashes { get; set; }
     }
 }

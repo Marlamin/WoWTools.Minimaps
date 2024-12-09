@@ -69,7 +69,7 @@ namespace WoWTools.MinimapTool
 
                 // Fill up the current version tile dictionary
                 if (!currentVersion.maps.ContainsKey(mapName))
-                    currentVersion.maps[mapName] = new MapManifest() { MaxX = "-1", MaxY = "-1", MinX = "-1", MinY = "-1", TileHashes = new string[64][] };
+                    currentVersion.maps[mapName] = new MapManifest() { MaxX = -1, MaxY = -1, MinX = -1, MinY = -1, TileHashes = new string[64][] };
 
                 for (byte x = 0; x < 64; x++)
                     currentVersion.maps[mapName].TileHashes[x] = new string[64];
@@ -106,10 +106,10 @@ namespace WoWTools.MinimapTool
                     }
                 }
 
-                currentVersion.maps[mapName].MinX = min_x.ToString();
-                currentVersion.maps[mapName].MinY = min_y.ToString();
-                currentVersion.maps[mapName].MaxX = max_x.ToString();
-                currentVersion.maps[mapName].MaxY = max_y.ToString();
+                currentVersion.maps[mapName].MinX = min_x;
+                currentVersion.maps[mapName].MinY = min_y;
+                currentVersion.maps[mapName].MaxX = max_x;
+                currentVersion.maps[mapName].MaxY = max_y;
 
                 var compileTiles = !previousVersion.maps.ContainsKey(mapName);
 
@@ -176,12 +176,13 @@ namespace WoWTools.MinimapTool
 
             foreach (var mapManifest in currentVersion.maps)
             {
-                var newMapManifest = new MapManifestNew
+                var newMapManifest = new MapManifest
                 {
-                    MinX = sbyte.Parse(mapManifest.Value.MinX),
-                    MinY = sbyte.Parse(mapManifest.Value.MinY),
-                    MaxX = sbyte.Parse(mapManifest.Value.MaxX),
-                    MaxY = sbyte.Parse(mapManifest.Value.MaxY),
+                    MinX = mapManifest.Value.MinX,
+                    MinY = mapManifest.Value.MinY,
+                    MaxX = mapManifest.Value.MaxX,
+                    MaxY = mapManifest.Value.MaxY,
+
                     TileHashes = mapManifest.Value.TileHashes
                 };
 

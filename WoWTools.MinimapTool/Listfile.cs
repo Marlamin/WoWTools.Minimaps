@@ -4,6 +4,7 @@
     {
         public static Dictionary<uint, string> FDIDMap = [];
         public static Dictionary<string, uint> NameToFDIDMap = [];
+        public static List<string> ListfileMaps = [];
 
         public static void Load()
         {
@@ -30,7 +31,7 @@
                     Console.WriteLine("Downloading listfile");
 
                     using (var w = new HttpClient())
-                    using (var s = w.GetStreamAsync("https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile.csv").Result)
+                    using (var s = w.GetStreamAsync("https://github.com/wowdev/wow-listfile/releases/latest/download/community-listfile-withcapitals.csv").Result)
                     {
                         using var fs = new FileStream("listfile.csv", FileMode.OpenOrCreate);
                         s.CopyTo(fs);
@@ -49,14 +50,19 @@
 
                     var splitLine = line.Split(";");
                     var fdid = uint.Parse(splitLine[0]);
+                    var filename = splitLine[1].ToLowerInvariant();
 
-                    if (!splitLine[1].StartsWith("world"))
+                    if (!filename.StartsWith("world"))
                         continue;
 
-                    if (splitLine[1].StartsWith("world/minimaps") || splitLine[1].EndsWith(".wdt"))
+                    if (filename.StartsWith("world/minimaps") || filename.EndsWith(".wdt"))
                     {
-                        FDIDMap[fdid] = splitLine[1];
-                        NameToFDIDMap[splitLine[1]] = fdid;
+                        FDIDMap[fdid] = filename;
+                        NameToFDIDMap[filename] = fdid;
+
+                        var mapNameWithCaps = splitLine[1].Split("/")[2];
+                        if(!ListfileMaps.Contains(mapNameWithCaps) && mapNameWithCaps.ToLowerInvariant() != "wmo")
+                            ListfileMaps.Add(mapNameWithCaps);
                     }
                 }
             }
