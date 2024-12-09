@@ -1,5 +1,9 @@
 ﻿using DBDefsLib;
+using MPQToTACT;
+using MPQToTACT.MPQ;
+using MPQToTACT.Readers;
 using System.Diagnostics;
+using System.Formats.Tar;
 
 namespace WoWTools.MinimapExtractMPQ
 {
@@ -53,22 +57,25 @@ namespace WoWTools.MinimapExtractMPQ
 
                 doneBuilds.Add(build);
 
-                if (Directory.Exists(Path.Combine(outDir, build, "World", "Minimaps")))
-                {
-                    Console.WriteLine(build + " already extracted");
-                    continue;
-                }
+                //if (Directory.Exists(Path.Combine(outDir, build, "World", "Minimaps")))
+                //{
+                //    Console.WriteLine(build + " already extracted");
+                //    continue;
+                //}
 
-                var buildOutDir = Path.Combine(outDir, build);
-                if (!Directory.Exists(buildOutDir))
-                    Directory.CreateDirectory(buildOutDir);
 
                 // Only do 0.X builds for now
                 if (build[0] != '0')
                     continue;
 
+                var buildOutDir = Path.Combine(outDir, build);
+                if (!Directory.Exists(buildOutDir))
+                    Directory.CreateDirectory(buildOutDir);
+                else
+                    continue;
+
                 //// Actually lets only do 0.5.3 for now
-                //if (build != "0.5.3.3368")
+                //if (build != "0.8.0.3734")
                 //    continue;
 
                 var subdirs = Directory.GetDirectories(directory);
@@ -86,8 +93,14 @@ namespace WoWTools.MinimapExtractMPQ
 
                 #region md5translate.txt/trs
                 // 0.5.3-0.5.5 md5translate.txt exists on disk in Data/textures/minimap directory.
-                // 0.6.x- md5translate.txt exists on disk and in base.MPQ in textures/minimap, MPQ takes priority over the one in the directory.
+                // 0.6-0.11 md5translate.txt exists on disk and in base.MPQ in textures/minimap. Unsure how it is patched, so use on disk version for now.
+                // 0.12 md5translate.txt exists in base.MPQ AND md5translate.trs patch.MPQ, we need to use the one from patch.MPQ. 
                 // 1.0+ now named md5translate.trs and is in misc.MPQ and not in a Data subdir
+
+                // TODO: 0.12
+                // TODO: Use stormlib minimap extraction with proper patching
+                // TODO: Use stormlib file exists check, MPQ trs first, then below checks
+
                 if (build[0] == '1' && File.Exists(Path.Combine(dataDir, "misc.MPQ")))
                 {
                     Log(build, "misc.MPQ found, attempting to extract md5translate.txt");
@@ -97,6 +110,15 @@ namespace WoWTools.MinimapExtractMPQ
 
                     if (!File.Exists(Path.Combine(buildOutDir, "textures/Minimap/md5translate.trs")))
                         throw new Exception("md5translate.trs not found in extracted MPQ");
+                }
+                else if (File.Exists(Path.Combine(dataDir, "textures", "minimap", "md5translate.txt")))
+                {
+                    Log(build, "md5translate.txt was found on disk");
+
+                    if (!Directory.Exists(Path.Combine(buildOutDir, "textures/Minimap")))
+                        Directory.CreateDirectory(Path.Combine(buildOutDir, "textures/Minimap"));
+
+                    File.Copy(Path.Combine(dataDir, "textures", "minimap", "md5translate.txt"), Path.Combine(buildOutDir, "textures/Minimap", "md5translate.trs"), true);
                 }
                 else if (build[0] == '0' && File.Exists(Path.Combine(dataDir, "base.MPQ")))
                 {
@@ -114,20 +136,22 @@ namespace WoWTools.MinimapExtractMPQ
 
                     Directory.Delete(Path.Combine(buildOutDir, "Data"), true);
                 }
-                else if (File.Exists(Path.Combine(dataDir, "textures", "minimap", "md5translate.txt")))
-                {
-                    Log(build, "base.MPQ not found, but md5translate.txt was found on disk");
 
-                    if (!Directory.Exists(Path.Combine(buildOutDir, "textures/Minimap")))
-                        Directory.CreateDirectory(Path.Combine(buildOutDir, "textures/Minimap"));
-
-                    File.Copy(Path.Combine(dataDir, "textures", "minimap", "md5translate.txt"), Path.Combine(buildOutDir, "textures/Minimap", "md5translate.trs"), true);
-                }
                 #endregion
 
                 #region MPQs
                 var targetMPQs = new List<string>();
                 var patchMPQs = new List<string>();
+
+                var options = new Options();
+                options.WoWDirectory = subdirs[0];
+                options.ExcludedDirectories = new HashSet<string> { "" };
+                options.ExcludedExtensions = new HashSet<string> { "" };
+
+                var dirReader = new DirectoryReader(options);
+                var mpqReader = new MPQReader(options, dirReader.PatchArchives);
+                mpqReader.EnumerateDataArchives(Directory.GetFiles(dataDir, "*.MPQ"), buildOutDir);
+
                 foreach (var mpq in Directory.GetFiles(dataDir, "*.MPQ"))
                 {
                     var mpqName = Path.GetFileName(mpq);
@@ -143,7 +167,6 @@ namespace WoWTools.MinimapExtractMPQ
                     }
                 }
 
-                ExtractFromMPQ(build, targetMPQs, patchMPQs, ["textures\\Minimap\\*", "World\\Minimaps\\*"], buildOutDir);
                 #endregion
 
                 #region Rename
@@ -191,6 +214,28 @@ namespace WoWTools.MinimapExtractMPQ
 
                             Console.WriteLine(sourceFile + " => " + targetFile);
 
+                            if(targetFile.Length == 12)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                if(build == "0.9.0.3807" || build == "0.9.1.3810")
+                                {
+                                    Console.WriteLine("Warning: " + targetFile + " is just a minimap tile without map. For version 0.9 this is expected for the CavernsOfTime map. Manually fixing.");
+                                    Console.ResetColor();
+                                    targetFile = "CavernsOfTime\\" + targetFile;
+
+                                    if (!Directory.Exists(Path.Combine(buildOutDir, "World", "Minimaps", "CavernsOfTime")))
+                                    {
+                                        Directory.CreateDirectory(Path.Combine(buildOutDir, "World", "Minimaps", "CavernsOfTime"));
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Error: " + targetFile + " for build " + build + " is just a minimap tile without map. Expected for 0.9 (CavernsOfTime) but this isn't 0.9. Stop or press enter to skip.");
+                                    Console.ResetColor();
+                                    Console.ReadLine();
+                                    continue;
+                                }
+                            }
                             if (targetFile.StartsWith("Kalimdor\\Tanaris\\"))
                                 continue;
 

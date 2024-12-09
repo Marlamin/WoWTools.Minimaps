@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\StormLibWrapper\StormLibWrapper.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Update="MPQEditor.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
