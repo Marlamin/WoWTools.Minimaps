@@ -29,6 +29,19 @@ namespace MPQToTACT.Helpers
                     return 1;
             }
 
+            // WoWTest should take prio
+            if (!a1.Contains("WoWTest") && a2.Contains("WoWTest"))
+            {
+                Console.WriteLine("Prioritizing WoWTest: " + a2 + " > " + a1);
+                return -1;
+            }
+
+            if (a1.Contains("WoWTest") && !a2.Contains("WoWTest"))
+            {
+                Console.WriteLine("Prioritizing WoWTest: " + a1 + " > " + a2);
+                return -1;
+            }
+
             if (archive1.IsPatch != archive2.IsPatch)
                 return archive2.IsPatch ? 1 : -1;
 
@@ -55,7 +68,7 @@ namespace MPQToTACT.Helpers
                     return hasNum1 ? -1 : 1;
             }
 
-            return -string.Compare(archive1.PatchNum, archive2.PatchNum, StringComparison.OrdinalIgnoreCase);
+            return string.Compare(archive1.PatchNum, archive2.PatchNum, StringComparison.OrdinalIgnoreCase);
         }
 
         private struct MPQInfo

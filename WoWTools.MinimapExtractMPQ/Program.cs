@@ -4,6 +4,7 @@ using MPQToTACT.MPQ;
 using MPQToTACT.Readers;
 using System.Diagnostics;
 using System.Formats.Tar;
+using System.Net.NetworkInformation;
 
 namespace WoWTools.MinimapExtractMPQ
 {
@@ -63,86 +64,26 @@ namespace WoWTools.MinimapExtractMPQ
                 //    continue;
                 //}
 
+                if(uint.Parse(build.Split('.')[3]) < 6729)
+                {
+                    Console.WriteLine("Skipping " + build + " as it's before filter");
+                    continue;
+                }
 
                 // Only do 0.X builds for now
-                if (build[0] != '0')
-                    continue;
+                //if (build[0] != '0')
+                //    continue;
 
                 var buildOutDir = Path.Combine(outDir, build);
                 if (!Directory.Exists(buildOutDir))
                     Directory.CreateDirectory(buildOutDir);
-                else
-                    continue;
-
-                //// Actually lets only do 0.5.3 for now
-                //if (build != "0.8.0.3734")
-                //    continue;
 
                 var subdirs = Directory.GetDirectories(directory);
                 if (subdirs.Length > 1 || Path.GetFileNameWithoutExtension(subdirs[0]) != "World of Warcraft")
                     throw new Exception("Unexpected directory structure found in " + directory);
 
-                var dataDir = Path.Combine(subdirs[0], "Data");
-
-                // Check if WoWTest exists (old PTR)
-                if (Directory.Exists(Path.Combine(subdirs[0], "WoWTest")))
-                {
-                    Log(build, "Old style PTR found, NYI: " + directory);
-                    continue;
-                }
-
-                #region md5translate.txt/trs
-                // 0.5.3-0.5.5 md5translate.txt exists on disk in Data/textures/minimap directory.
-                // 0.6-0.11 md5translate.txt exists on disk and in base.MPQ in textures/minimap. Unsure how it is patched, so use on disk version for now.
-                // 0.12 md5translate.txt exists in base.MPQ AND md5translate.trs patch.MPQ, we need to use the one from patch.MPQ. 
-                // 1.0+ now named md5translate.trs and is in misc.MPQ and not in a Data subdir
-
-                // TODO: 0.12
-                // TODO: Use stormlib minimap extraction with proper patching
-                // TODO: Use stormlib file exists check, MPQ trs first, then below checks
-
-                if (build[0] == '1' && File.Exists(Path.Combine(dataDir, "misc.MPQ")))
-                {
-                    Log(build, "misc.MPQ found, attempting to extract md5translate.txt");
-
-                    // TODO: Patches. If PTR, use the WoWTest/patch.MPQ as well.
-                    ExtractFromMPQ(build, [Path.Combine(dataDir, "misc.MPQ")], [], ["textures/Minimap/md5translate.trs"], buildOutDir);
-
-                    if (!File.Exists(Path.Combine(buildOutDir, "textures/Minimap/md5translate.trs")))
-                        throw new Exception("md5translate.trs not found in extracted MPQ");
-                }
-                else if (File.Exists(Path.Combine(dataDir, "textures", "minimap", "md5translate.txt")))
-                {
-                    Log(build, "md5translate.txt was found on disk");
-
-                    if (!Directory.Exists(Path.Combine(buildOutDir, "textures/Minimap")))
-                        Directory.CreateDirectory(Path.Combine(buildOutDir, "textures/Minimap"));
-
-                    File.Copy(Path.Combine(dataDir, "textures", "minimap", "md5translate.txt"), Path.Combine(buildOutDir, "textures/Minimap", "md5translate.trs"), true);
-                }
-                else if (build[0] == '0' && File.Exists(Path.Combine(dataDir, "base.MPQ")))
-                {
-                    Log(build, "base.MPQ found, attempting to extract md5translate.txt");
-                    ExtractFromMPQ(build, [Path.Combine(dataDir, "base.MPQ")], [], ["Data/textures/Minimap/md5translate.txt"], buildOutDir);
-
-                    if (!File.Exists(Path.Combine(buildOutDir, "Data/textures/Minimap/md5translate.txt")))
-                        throw new Exception("md5translate.txt not found in extracted MPQ");
-
-                    // Rename to expected name for processing
-                    if (!Directory.Exists(Path.Combine(buildOutDir, "textures/Minimap")))
-                        Directory.CreateDirectory(Path.Combine(buildOutDir, "textures/Minimap"));
-
-                    File.Move(Path.Combine(buildOutDir, "Data/textures/Minimap/md5translate.txt"), Path.Combine(buildOutDir, "textures/Minimap/md5translate.trs"), true);
-
-                    Directory.Delete(Path.Combine(buildOutDir, "Data"), true);
-                }
-
-                #endregion
 
                 #region MPQs
-                var targetMPQs = new List<string>();
-                var patchMPQs = new List<string>();
-
                 var options = new Options();
                 options.WoWDirectory = subdirs[0];
                 options.ExcludedDirectories = new HashSet<string> { "" };
@@ -150,28 +91,82 @@ namespace WoWTools.MinimapExtractMPQ
 
                 var dirReader = new DirectoryReader(options);
                 var mpqReader = new MPQReader(options, dirReader.PatchArchives);
-                mpqReader.EnumerateDataArchives(Directory.GetFiles(dataDir, "*.MPQ"), buildOutDir);
 
-                foreach (var mpq in Directory.GetFiles(dataDir, "*.MPQ"))
+                // Extract all minimap tiles to a generic folder
+                var genericTextureDir = "M:\\Minimaps\\";
+
+                var genericTextureDirTiles = Path.Combine(genericTextureDir, "textures", "Minimap");
+                if (!Directory.Exists(genericTextureDirTiles))
+                    Directory.CreateDirectory(genericTextureDirTiles);
+
+                var buildOutDirTiles = Path.Combine(buildOutDir, "textures", "Minimap");
+                if (!Directory.Exists(buildOutDirTiles))
+                    Directory.CreateDirectory(buildOutDirTiles);
+
+                // Only tiles (unpatched, already md5 named so unique)
+                mpqReader.EnumerateDataArchives(Directory.GetFiles(subdirs[0], "*.MPQ", SearchOption.AllDirectories), genericTextureDir, false, "blp", false);
+
+                // Extract md5translate.trs (properly patched)
+                mpqReader.EnumerateDataArchives(Directory.GetFiles(subdirs[0], "*.MPQ", SearchOption.AllDirectories), buildOutDir, true, "trs", true);
+                #endregion
+
+                #region md5translate.txt/trs
+                // 0.5.3-0.5.5 md5translate.txt exists on disk in Data/textures/minimap directory.
+                // 0.6-0.11 md5translate.txt exists on disk and in base.MPQ in textures/minimap. Unsure how/if it is patched, so use on disk version for now.
+                // 0.12 md5translate.txt exists in base.MPQ AND md5translate.trs patch.MPQ, we need to use the one from patch.MPQ. 
+                // 1.0+ now named md5translate.trs and is in misc.MPQ and not in a Data subdir, assumingly patched by patch MPQs.
+
+                var splitBuild = build.Split('.');
+                if (splitBuild[0] == "0")
                 {
-                    var mpqName = Path.GetFileName(mpq);
+                    var dataDir = Path.Combine(subdirs[0], "Data");
 
-                    if (build[0] == '0')
+                    if (File.Exists(Path.Combine(dataDir, "textures", "minimap", "md5translate.txt")))
                     {
-                        if (mpqName == "texture.MPQ")
-                            targetMPQs.Add(mpq);
+                        Log(build, "md5translate.txt was found on disk");
 
-                        if (mpqName.StartsWith("patch"))
-                            patchMPQs.Add(mpq);
+                        if (!Directory.Exists(Path.Combine(buildOutDir, "textures/Minimap")))
+                            Directory.CreateDirectory(Path.Combine(buildOutDir, "textures/Minimap"));
 
+                        File.Copy(Path.Combine(dataDir, "textures", "minimap", "md5translate.txt"), Path.Combine(buildOutDir, "textures/Minimap", "md5translate.trs"), true);
+                    }
+                    else if (build[0] == '0' && File.Exists(Path.Combine(dataDir, "base.MPQ")))
+                    {
+                        Log(build, "No md5translate.txt found on disk but found a base.MPQ, attempting to extract md5translate.txt");
+
+                        // Todo stormlib
+                        //throw new NotImplementedException();
+                        //ExtractFromMPQ(build, [Path.Combine(dataDir, "base.MPQ")], [], ["Data/textures/Minimap/md5translate.txt"], buildOutDir);
+
+                        //if (!File.Exists(Path.Combine(buildOutDir, "Data/textures/Minimap/md5translate.txt")))
+                        //    throw new Exception("md5translate.txt not found in extracted MPQ");
+
+                        //// Rename to expected name for processing
+                        //if (!Directory.Exists(Path.Combine(buildOutDir, "textures/Minimap")))
+                        //    Directory.CreateDirectory(Path.Combine(buildOutDir, "textures/Minimap"));
+
+                        //File.Move(Path.Combine(buildOutDir, "Data/textures/Minimap/md5translate.txt"), Path.Combine(buildOutDir, "textures/Minimap/md5translate.trs"), true);
+
+                        //Directory.Delete(Path.Combine(buildOutDir, "Data"), true);
                     }
                 }
+                else
+                {
+                    // For 0.12 and 1.0+ we used generic extraction
 
+                    if (!File.Exists(Path.Combine(buildOutDir, "textures/Minimap/md5translate.trs")))
+                        throw new Exception("md5translate.trs not found in extracted MPQ");
+                }
+
+                
                 #endregion
 
                 #region Rename
-                if (build[0] == '0' || build[0] == '1')
+                if (build[0] == '0' || build[0] == '1' || build[0] == '2' || build[0] == '3')
                 {
+                    if(Directory.Exists(Path.Combine(buildOutDir, "WorldDupeQuestionMark")))
+                        Directory.Delete(Path.Combine(buildOutDir, "WorldDupeQuestionMark"), true);
+
                     if (Directory.Exists(Path.Combine(buildOutDir, "World")))
                         Directory.Move(Path.Combine(buildOutDir, "World"), Path.Combine(buildOutDir, "WorldDupeQuestionMark"));
 
@@ -241,7 +236,7 @@ namespace WoWTools.MinimapExtractMPQ
 
                             if (!File.Exists(Path.Combine(buildOutDir, "World", "Minimaps", targetFile)))
                             {
-                                File.Copy(Path.Combine(buildOutDir, "textures", "Minimap", sourceFile), Path.Combine(buildOutDir, "World", "Minimaps", targetFile));
+                                File.Copy(Path.Combine(genericTextureDir, "textures", "Minimap", sourceFile), Path.Combine(buildOutDir, "World", "Minimaps", targetFile));
                             }
                         }
                     }

@@ -1,12 +1,6 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Threading.Tasks.Dataflow;
-using MPQToTACT.Helpers;
+﻿using MPQToTACT.Helpers;
 using MPQToTACT.MPQ;
+using System.Threading.Tasks.Dataflow;
 
 namespace MPQToTACT.Readers
 {
@@ -34,19 +28,34 @@ namespace MPQToTACT.Readers
         /// <para>Patches are applied where applicable to get the most up-to-date variant of each file.</para>
         /// </summary>
         /// <param name="archives"></param>
-        public void EnumerateDataArchives(IEnumerable<string> archives, string outDir, bool applyTags = false)
+        public void EnumerateDataArchives(IEnumerable<string> archives, string outDir, bool applyPatches = true, string mode = "blp", bool overwrite = true)
         {
             Log.WriteLine("Exporting Data Archive files");
 
             foreach (var archivename in archives)
             {
+                if (archivename.ToLowerInvariant().Contains("data\\world"))
+                {
+                    Log.WriteLine("Skipping " + Path.GetFileName(archivename));
+                    continue;
+                }
+
+                // check if mpq size > 0
+                if (new FileInfo(archivename).Length == 0)
+                {
+                    Log.WriteLine("Skipping " + Path.GetFileName(archivename) + " (empty)");
+                    continue;
+                }
+
                 using var mpq = new MpqArchive(archivename, FileAccess.Read);
                 Log.WriteLine("   Exporting " + Path.GetFileName(mpq.FilePath));
 
                 if (TryGetListFile(mpq, out var files))
                 {
-                    mpq.AddPatchArchives(PatchArchives);
-                    ExportFiles(mpq, files, outDir).Wait();
+                    if (applyPatches)
+                        mpq.AddPatchArchives(PatchArchives);
+
+                    ExportFiles(mpq, files, outDir, mode, overwrite).Wait();
                     mpq.Dispose();
                 }
                 else if (TryReadAlpha(mpq, archivename))
@@ -81,7 +90,7 @@ namespace MPQToTACT.Readers
                     throw new Exception(Path.GetFileName(mpq.FilePath) + " MISSING LISTFILE");
 
                 mpq.AddPatchArchives(PatchArchives);
-                ExportFiles(mpq, files, "").Wait();
+                ExportFiles(mpq, files, "", "blp", true).Wait();
                 mpq.Dispose();
             }
         }
@@ -121,13 +130,12 @@ namespace MPQToTACT.Readers
         /// <param name="filenames"></param>
         /// <param name="maxDegreeOfParallelism"></param>
         /// <returns></returns>
-        private async Task ExportFiles(MpqArchive mpq, IEnumerable<string> filenames, string outDir, int maxDegreeOfParallelism = 150)
+        private async Task ExportFiles(MpqArchive mpq, IEnumerable<string> filenames, string outDir, string mode, bool overwrite, int maxDegreeOfParallelism = 150)
         {
+            var exportedCount = 0;
+
             var block = new ActionBlock<string>(file =>
             {
-                // This shouldn't be required I think but it is for 0.5.3 at least
-                file = file.Replace("/", "\\");
-
                 using var fs = mpq.OpenFile(file);
 
                 if (fs == null)
@@ -138,7 +146,7 @@ namespace MPQToTACT.Readers
                     return;
 
                 // patch has marked file for deletion so remove from filelist
-                if(fs.Flags.HasFlag(MPQFileAttributes.DeleteMarker))
+                if (fs.Flags.HasFlag(MPQFileAttributes.DeleteMarker))
                 {
                     FileList.Remove(file);
                     return;
@@ -149,24 +157,49 @@ namespace MPQToTACT.Readers
                     FileList.Add(file);
                 }
 
-                if (file.ToLowerInvariant().StartsWith("textures\\minimap"))
+                using (var ms = new MemoryStream())
                 {
-                    Console.WriteLine(file);
-                    using(var ms = new MemoryStream())
-                    {
-                        fs.CopyTo(ms);
-                        File.WriteAllBytes(Path.Combine(outDir, file), ms.ToArray());
-                    }
+                    fs.CopyTo(ms);
+
+                    File.WriteAllBytes(Path.Combine(outDir, file), ms.ToArray());
+
+                    exportedCount++;
                 }
             },
             new ExecutionDataflowBlockOptions { MaxDegreeOfParallelism = maxDegreeOfParallelism });
 
-            foreach (var file in filenames)
+            // This shouldn't be required I think but it is for 0.5.3 at least
+            var filenamesEscaped = filenames.Select(f => f.Replace("/", "\\")).ToList();
+
+            var filenamesFiltered = filenamesEscaped.Where(f => f.StartsWith("textures\\minimap", StringComparison.InvariantCultureIgnoreCase)).ToList();
+
+            if (mode == "trs")
+            {
+                filenamesFiltered = filenamesFiltered.Where(f => f.EndsWith(".trs", StringComparison.InvariantCultureIgnoreCase)).ToList();
+            }
+            else if (mode == "blp")
+            {
+                filenamesFiltered = filenamesFiltered.Where(f => f.EndsWith(".blp", StringComparison.InvariantCultureIgnoreCase)).ToList();
+
+                if (!overwrite)
+                {
+                    var existingTiles = Directory.GetFiles(Path.Combine(outDir, "textures"), "*.blp", SearchOption.AllDirectories).Select(f => Path.GetFileName(f)).ToList();
+                    filenamesFiltered = filenamesFiltered.Where(f => !existingTiles.Contains(Path.GetFileName(f))).ToList();
+                }
+            }
+
+            foreach (var file in filenamesFiltered)
+            {
                 if (!FileList.Contains(file))
+                {
                     block.Post(file);
+                }
+            }
 
             block.Complete();
             await block.Completion;
+
+            Log.WriteLine("    Exported " + exportedCount + " files");
         }
 
         /// <summary>

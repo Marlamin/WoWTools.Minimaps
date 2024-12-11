@@ -58,6 +58,12 @@ namespace MPQToTACT.Readers
 
             // sort them
             PatchArchives.Sort(MPQSorter.Sort);
+
+            Console.WriteLine("Patch sort result:");
+            foreach (var archive in PatchArchives)
+            {
+                Console.WriteLine("\t" + archive);
+            }
             BaseArchives.Sort(MPQSorter.Sort);
             DataArchives.Sort(MPQSorter.Sort);
         }
