@@ -1,10 +1,6 @@
 ﻿using DBDefsLib;
 using MPQToTACT;
-using MPQToTACT.MPQ;
 using MPQToTACT.Readers;
-using System.Diagnostics;
-using System.Formats.Tar;
-using System.Net.NetworkInformation;
 
 namespace WoWTools.MinimapExtractMPQ
 {
@@ -14,9 +10,6 @@ namespace WoWTools.MinimapExtractMPQ
         {
             if (!Directory.Exists("work"))
                 Directory.CreateDirectory("work");
-
-            if (!File.Exists("MPQEditor.exe"))
-                throw new Exception("MPQEditor.exe not found");
 
             var outDir = "M:\\Minimaps\\RawTiles";
             if (!Directory.Exists(outDir))
@@ -64,7 +57,7 @@ namespace WoWTools.MinimapExtractMPQ
                 //    continue;
                 //}
 
-                if(uint.Parse(build.Split('.')[3]) < 6729)
+                if (uint.Parse(build.Split('.')[3]) < 6729)
                 {
                     Console.WriteLine("Skipping " + build + " as it's before filter");
                     continue;
@@ -158,13 +151,13 @@ namespace WoWTools.MinimapExtractMPQ
                         throw new Exception("md5translate.trs not found in extracted MPQ");
                 }
 
-                
+
                 #endregion
 
                 #region Rename
                 if (build[0] == '0' || build[0] == '1' || build[0] == '2' || build[0] == '3')
                 {
-                    if(Directory.Exists(Path.Combine(buildOutDir, "WorldDupeQuestionMark")))
+                    if (Directory.Exists(Path.Combine(buildOutDir, "WorldDupeQuestionMark")))
                         Directory.Delete(Path.Combine(buildOutDir, "WorldDupeQuestionMark"), true);
 
                     if (Directory.Exists(Path.Combine(buildOutDir, "World")))
@@ -209,10 +202,10 @@ namespace WoWTools.MinimapExtractMPQ
 
                             Console.WriteLine(sourceFile + " => " + targetFile);
 
-                            if(targetFile.Length == 12)
+                            if (targetFile.Length == 12)
                             {
                                 Console.ForegroundColor = ConsoleColor.Yellow;
-                                if(build == "0.9.0.3807" || build == "0.9.1.3810")
+                                if (build == "0.9.0.3807" || build == "0.9.1.3810")
                                 {
                                     Console.WriteLine("Warning: " + targetFile + " is just a minimap tile without map. For version 0.9 this is expected for the CavernsOfTime map. Manually fixing.");
                                     Console.ResetColor();
@@ -248,45 +241,6 @@ namespace WoWTools.MinimapExtractMPQ
         private static void Log(string build, string message)
         {
             Console.WriteLine("[" + build + "] " + message);
-        }
-
-        private static void ExtractFromMPQ(string build, List<string> inputMPQs, List<string> patchMPQs, List<string> extractFilters, string outDir)
-        {
-            // Because we're working off a mount that MPQ Editor can't deal with, we need to copy the input MPQ(s?) to a location it can deal with
-            foreach (var inputMPQ in inputMPQs)
-            {
-                Log(build, "Copying " + inputMPQ + " to work directory");
-                var tempMPQ = Path.Combine("work", Path.GetFileName(inputMPQ));
-                if (File.Exists(tempMPQ))
-                    File.Delete(tempMPQ);
-
-                File.Copy(inputMPQ, tempMPQ);
-            }
-
-            if (inputMPQs.Count > 1)
-                throw new NotImplementedException();
-
-            var workMPQ = Path.Combine("work", Path.GetFileName(inputMPQs[0]));
-
-            foreach(var extractFilter in extractFilters)
-            {
-                Log(build, "Extracting " + extractFilter + " from " + workMPQ + " into " + outDir);
-
-                Console.WriteLine("/extract \"" + workMPQ + "\" \"" + extractFilter + "\" \"" + outDir + "\" /fp");
-
-                var mpqEditor = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = "MPQEditor.exe",
-                        Arguments = "/extract \"" + workMPQ + "\" \"" + extractFilter + "\" \"" + outDir + "\" /fp",
-                        UseShellExecute = false,
-                    }
-                };
-
-                mpqEditor.Start();
-                mpqEditor.WaitForExit();
-            }
         }
     }
 }
