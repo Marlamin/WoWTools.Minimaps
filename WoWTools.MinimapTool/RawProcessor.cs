@@ -12,6 +12,7 @@ namespace WoWTools.MinimapTool
     {
         private static VersionManifest previousVersion = new();
         private static VersionManifest currentVersion = new();
+        private static JsonSerializerOptions jsonOptions = new() { WriteIndented = true };
 
         private static string BaseInDir;
         private static string BaseOutDir;
@@ -23,9 +24,6 @@ namespace WoWTools.MinimapTool
 
         public static void ProcessBuild(string inputdir, Build build)
         {
-            if (build.expansion != 0)
-                return;
-
             BaseInDir = inputdir;
 
             if (previousVersion.maps == null)
@@ -172,7 +170,7 @@ namespace WoWTools.MinimapTool
             if (!Directory.Exists(Path.Combine(outdir, "maps")))
                 Directory.CreateDirectory(Path.Combine(outdir, "maps"));
 
-            File.WriteAllText(Path.Combine(outdir, "versionManifest.json"), JsonSerializer.Serialize(currentVersion, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(outdir, "versionManifest.json"), JsonSerializer.Serialize(currentVersion, jsonOptions));
 
             foreach (var mapManifest in currentVersion.maps)
             {
@@ -186,31 +184,90 @@ namespace WoWTools.MinimapTool
                     TileHashes = mapManifest.Value.TileHashes
                 };
 
-                File.WriteAllText(Path.Combine(outdir, "maps", mapManifest.Key + ".json"), JsonSerializer.Serialize(newMapManifest, new JsonSerializerOptions { WriteIndented = true }));
+                File.WriteAllText(Path.Combine(outdir, "maps", mapManifest.Key + ".json"), JsonSerializer.Serialize(newMapManifest, jsonOptions));
             }
 
             previousVersion = currentVersion;
 
             // Re-sort buildmap in expected build order
-            var sorted = buildMap.OrderBy(x => new Build(x.Key)).ToDictionary(x => x.Key, x => x.Value);
+
+            var sorted = buildMap.OrderBy(x => new Build(x.Key.Replace(".0a", ".0"))).ToDictionary(x => x.Key, x => x.Value);
             buildMap = sorted;
 
             // Save the build map
-            File.WriteAllText(Path.Combine(BaseOutDir, "buildMap.json"), JsonSerializer.Serialize(buildMap, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(BaseOutDir, "buildMap.json"), JsonSerializer.Serialize(buildMap, jsonOptions));
         }
 
-        public static void TryLoadVersionManifest(string buildRootKey)
+        public static VersionManifest? TryLoadVersionManifest(string buildRootKey, bool isPrevious)
         {
             var outdir = Path.Combine(BaseOutDir, buildRootKey);
             if (!Directory.Exists(outdir))
-                return;
+                return null;
 
             var versionManifestPath = Path.Combine(outdir, "versionManifest.json");
             if (!File.Exists(versionManifestPath))
-                return;
+                return null;
 
-            previousVersion = JsonSerializer.Deserialize<VersionManifest>(File.ReadAllText(versionManifestPath));
-            Console.WriteLine("Loaded build " + previousVersion.version + " as previous version");
+            var versionManifest = JsonSerializer.Deserialize<VersionManifest>(File.ReadAllText(versionManifestPath));
+            versionManifest.maps = new();
+
+            foreach (var map in Directory.GetFiles(Path.Combine(outdir, "maps"), "*.json"))
+            {
+                MapManifest mapManifest;
+
+                try
+                {
+                    mapManifest = JsonSerializer.Deserialize<MapManifest>(File.ReadAllText(map));
+                }
+                catch (JsonException e)
+                {
+                    Console.WriteLine("Error: Failed to parse map manifest " + map + " in build " + buildRootKey + ", trying to parse as old manifest instead..");
+                    var oldMapManifest = JsonSerializer.Deserialize<MapManifestOld>(File.ReadAllText(map));
+                    mapManifest = new MapManifest
+                    {
+                        MinX = sbyte.Parse(oldMapManifest.MinX),
+                        MinY = sbyte.Parse(oldMapManifest.MinY),
+                        MaxX = sbyte.Parse(oldMapManifest.MaxX),
+                        MaxY = sbyte.Parse(oldMapManifest.MaxY),
+                        MapName = oldMapManifest.MapName,
+                        InternalMapID = oldMapManifest.InternalMapID,
+                        WDTFileDataID = oldMapManifest.WDTFileDataID,
+                        TileHashes = oldMapManifest.TileHashes
+                    };
+
+                    Console.WriteLine("Rewriting old manifest");
+
+                    File.WriteAllText(map, JsonSerializer.Serialize(mapManifest, jsonOptions));
+                }
+
+                var mapName = Path.GetFileNameWithoutExtension(map);
+
+                if (mapManifest == null || (mapManifest.MinX == -1 && mapManifest.MinY == -1 && mapManifest.MaxX == -1 && mapManifest.MaxY == -1))
+                {
+                    //Console.WriteLine("Skipping map " + mapName + " as it has no tiles");
+                }
+                else
+                {
+                    versionManifest.maps[mapName] = new MapManifest
+                    {
+                        MinX = mapManifest.MinX,
+                        MinY = mapManifest.MinY,
+                        MaxX = mapManifest.MaxX,
+                        MaxY = mapManifest.MaxY,
+                        MapName = mapManifest.MapName,
+                        InternalMapID = mapManifest.InternalMapID,
+                        WDTFileDataID = mapManifest.WDTFileDataID,
+                        TileHashes = mapManifest.TileHashes
+                    };
+                }
+            }
+
+            Console.WriteLine("Loaded build " + versionManifest.version + " and " + versionManifest.maps.Count + " maps" + (isPrevious ? " as previous version" : " as current version"));
+
+            if (isPrevious)
+                previousVersion = versionManifest;
+
+            return versionManifest;
         }
 
         public static void CompileMap(Dictionary<(sbyte, sbyte), RootRecord> tiles, string mapName, string outDir, sbyte min_x, sbyte min_y, sbyte max_x, sbyte max_y)

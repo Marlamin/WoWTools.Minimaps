@@ -29,6 +29,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WoWTools.MinimapExtractMPQ"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StormLibWrapper", "StormLibWrapper\StormLibWrapper.csproj", "{96AFD817-FDBB-4F43-9D64-4A1F3D3DF328}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StormLibTest", "StormLibTest\StormLibTest.csproj", "{0D5A3001-8688-46FD-A78C-1D3124F02B1F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -88,6 +89,10 @@ Global
 		{96AFD817-FDBB-4F43-9D64-4A1F3D3DF328}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{96AFD817-FDBB-4F43-9D64-4A1F3D3DF328}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{96AFD817-FDBB-4F43-9D64-4A1F3D3DF328}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D5A3001-8688-46FD-A78C-1D3124F02B1F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D5A3001-8688-46FD-A78C-1D3124F02B1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D5A3001-8688-46FD-A78C-1D3124F02B1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D5A3001-8688-46FD-A78C-1D3124F02B1F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

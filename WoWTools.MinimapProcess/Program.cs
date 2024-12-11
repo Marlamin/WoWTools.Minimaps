@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.IO;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace WoWTools.MinimapProcess
@@ -141,7 +142,40 @@ namespace WoWTools.MinimapProcess
                         }
                         else
                         {
-                            Console.WriteLine("Error: Could not find branch for build " + build.Key);
+                            Console.WriteLine("Error: Could not find branch for build " + build.Key + ", trying archive..");
+                            var archivePath = "E:\\WoWArchive-0.X-3.X\\Mount";
+                            var allBuilds = Directory.GetDirectories(archivePath);
+                            foreach (var archiveBuild in allBuilds)
+                            {
+                                var dirOnly = Path.GetFileName(archiveBuild);
+                                var parts = dirOnly.Split('_');
+                                var fullBuild = parts[^1];
+
+                                if (fullBuild.Contains('-'))
+                                    continue;
+
+                                if (dirOnly.Contains("_PTR_"))
+                                {
+                                    var splitBuild = fullBuild.Split('.');
+                                    fullBuild = dirOnly[0] + "." + splitBuild[1] + "." + splitBuild[2] + "." + splitBuild[3];
+                                }
+
+                                if (fullBuild == build.Key)
+                                {
+                                    var oldBranch = "unknown"; 
+
+                                    if(dirOnly.Contains("Pre-Release"))
+                                        oldBranch = ProductToBranch("wow_beta");
+                                    else if (dirOnly.Contains("PTR"))
+                                        oldBranch = ProductToBranch("wowt");
+                                    else if (dirOnly.Contains("Retail"))
+                                        oldBranch = ProductToBranch("wow");
+
+                                    var maxID = current.Versions.Keys.Max();
+                                    current.Versions.Add(maxID + 1, new VersionEntry(int.Parse(build.Key.Split('.')[3]), oldBranch, build.Key));
+                                    Console.WriteLine("Added new archived build " + build.Key + " to manifest with branch " + oldBranch);
+                                }
+                            }
                         }
                     }
 

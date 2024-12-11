@@ -101,7 +101,7 @@ namespace WoWTools.MinimapTool
                 Console.WriteLine(buildObj.ToString() + " (" + buildRootKey + ")");
 
                 if (lastRootKey != "" && buildRootKey != lastRootKey)
-                    RawProcessor.TryLoadVersionManifest(lastRootKey);
+                    RawProcessor.TryLoadVersionManifest(lastRootKey, true);
 
                 try
                 {
@@ -148,7 +148,6 @@ namespace WoWTools.MinimapTool
                     });
                 }
             }
-
 
             builds.Add(new OurBuild()
             {
