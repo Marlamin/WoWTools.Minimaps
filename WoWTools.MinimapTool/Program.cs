@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using TACT.Net;
 
 namespace WoWTools.MinimapTool
 {
@@ -11,7 +10,7 @@ namespace WoWTools.MinimapTool
     {
         static async Task Main(string[] args)
         {
-            if(args.Length < 2)
+            if (args.Length < 2)
             {
                 PrintHelp();
                 return;
@@ -74,7 +73,7 @@ namespace WoWTools.MinimapTool
                     PrintHelp();
                     break;
             }
-           
+
         }
 
         private static async Task ProcessRaw(string inputFolder, string baseoutdir)
@@ -198,6 +197,14 @@ namespace WoWTools.MinimapTool
                 cdn_config = "070913e104dcb1dc02c67344b078563c"
             });
 
+            builds.Add(new OurBuild()
+            {
+                product = "wowxptr",
+                build = new Build("11.1.0.58221"),
+                build_config = "5e87ddc0854f3027f6eaeb37ce25022c",
+                cdn_config = "df7dce36f1b12973c0bd7a5ec7ad46a7"
+            });
+
             TACTProcessor.Start(baseoutdir, repoPath);
             var cdnConfigs = new List<string>();
 
@@ -207,11 +214,37 @@ namespace WoWTools.MinimapTool
 
                 foreach (var build in builds)
                 {
+                    var buildConfigPath = TACTProcessor.MakeCDNPath(repoPath, "config", build.build_config);
                     var cdnConfigPath = TACTProcessor.MakeCDNPath(repoPath, "config", build.cdn_config);
-                    if (!File.Exists(cdnConfigPath))
+
+                    if (!File.Exists(buildConfigPath) || !File.Exists(cdnConfigPath))
                     {
-                        Console.WriteLine("CDN CONFIG " + build.cdn_config + " MISSING");
-                        continue;
+                        if (string.IsNullOrEmpty(buildBackupPath))
+                        {
+                            Console.WriteLine("BuildBackup path not provided, can not download files");
+                            return;
+                        }
+
+                        Console.WriteLine("Missing config files for build " + build.build);
+                        var bbProcess = new Process
+                        {
+                            StartInfo = new ProcessStartInfo
+                            {
+                                WorkingDirectory = buildBackupPath,
+                                FileName = Path.Combine(buildBackupPath, "BuildBackup.exe"),
+                                Arguments = $"forcebuild wow {build.build_config} {build.cdn_config}",
+                                UseShellExecute = false
+                            }
+                        };
+
+                        bbProcess.Start();
+                        bbProcess.WaitForExit();
+
+                        if (!File.Exists(buildConfigPath) || !File.Exists(cdnConfigPath))
+                        {
+                            Console.WriteLine("Failed to download config files for build " + build.build);
+                            continue;
+                        }
                     }
 
                     if (!cdnConfigs.Contains(build.cdn_config))
@@ -313,7 +346,7 @@ namespace WoWTools.MinimapTool
 
                 try
                 {
-                    if(buildRootKey != lastRootKey)
+                    if (buildRootKey != lastRootKey)
                         TACTProcessor.ProcessBuild(build.build_config, build.cdn_config, build.product, build.build);
                 }
                 catch (Exception e)

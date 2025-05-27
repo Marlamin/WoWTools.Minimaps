@@ -139,12 +139,12 @@ namespace WoWTools.MinimapTool
                 currentVersion.maps = new();
             }
 
-            //if (Directory.Exists(outdir) && Directory.GetFiles(outdir).Length > 0)
-            //{
-            //    Console.WriteLine("Output directory already exists, skipping build " + buildName);
-            //    File.WriteAllText(Path.Combine(BaseOutDir, "buildMap.json"), JsonSerializer.Serialize(buildMap, jsonOptions));
-            //    return;
-            //}
+            if (Directory.Exists(outdir) && Directory.GetFiles(outdir).Length > 0)
+            {
+                Console.WriteLine("Output directory already exists, skipping build " + buildName);
+                File.WriteAllText(Path.Combine(BaseOutDir, "buildMap.json"), JsonSerializer.Serialize(buildMap, jsonOptions));
+                return;
+            }
 
             // open the encoding
             Console.WriteLine("[" + DateTime.UtcNow.ToString() + "] [TACT] Opening encoding...");
