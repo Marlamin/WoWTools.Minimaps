@@ -1,5 +1,4 @@
-﻿using System.IO;
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace WoWTools.MinimapProcess
@@ -73,12 +72,28 @@ namespace WoWTools.MinimapProcess
                         Console.WriteLine("Warning: Branch is null for build " + version.Value.FullBuild + " (ID " + version.Key + ")");
                 }
 
+                foreach(var map in current.Maps)
+                {
+                    if(current.Maps.Count(x => x.Value.InternalName.Equals(map.Value.InternalName, StringComparison.OrdinalIgnoreCase)) > 1)
+                    {
+                        Console.WriteLine("Warning: Duplicate map found with internal name " + map.Value.InternalName + " (ID " + map.Key + "):");
+                        foreach (var duplicate in current.Maps.Where(x => x.Value.InternalName.Equals(map.Value.InternalName, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            Console.WriteLine(" - Map ID: " + duplicate.Key + " (" + duplicate.Value.InternalName + "), First Seen Build: " + duplicate.Value.FirstSeenBuild);
+                            if (duplicate.Value.FirstSeenBuild == 28211)
+                                current.Maps.Remove(duplicate.Key);
+                        }
+                    }
+                }
+
                 var inputBuildManifest = Path.Combine(inputDir, "buildMap.json");
                 if (!File.Exists(inputBuildManifest))
                 {
                     Console.WriteLine("Error: buildMap.json not found in input directory");
                     return;
                 }
+
+                var mapsPerVersion = new Dictionary<int, List<string>>();
 
                 var buildManifest = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(inputBuildManifest));
                 var wagoBuild2Branch = new Dictionary<string, string>();
@@ -144,36 +159,46 @@ namespace WoWTools.MinimapProcess
                         {
                             Console.WriteLine("Error: Could not find branch for build " + build.Key + ", trying archive..");
                             var archivePath = "E:\\WoWArchive-0.X-3.X\\Mount";
-                            var allBuilds = Directory.GetDirectories(archivePath);
-                            foreach (var archiveBuild in allBuilds)
+                            if (!Directory.Exists(archivePath))
                             {
-                                var dirOnly = Path.GetFileName(archiveBuild);
-                                var parts = dirOnly.Split('_');
-                                var fullBuild = parts[^1];
-
-                                if (fullBuild.Contains('-'))
-                                    continue;
-
-                                if (dirOnly.Contains("_PTR_"))
+                                Console.WriteLine("Error: Archive path not found, falling back to Beta..");
+                                var maxID = current.Versions.Keys.Max();
+                                current.Versions.Add(maxID + 1, new VersionEntry(int.Parse(build.Key.Split('.')[3]), ProductToBranch("wow_beta"), build.Key));
+                                Console.WriteLine("Added new unknown build " + build.Key + " to manifest with branch " + ProductToBranch("wow_beta"));
+                            }
+                            else
+                            {
+                                var allBuilds = Directory.GetDirectories(archivePath);
+                                foreach (var archiveBuild in allBuilds)
                                 {
-                                    var splitBuild = fullBuild.Split('.');
-                                    fullBuild = dirOnly[0] + "." + splitBuild[1] + "." + splitBuild[2] + "." + splitBuild[3];
-                                }
+                                    var dirOnly = Path.GetFileName(archiveBuild);
+                                    var parts = dirOnly.Split('_');
+                                    var fullBuild = parts[^1];
 
-                                if (fullBuild == build.Key)
-                                {
-                                    var oldBranch = "unknown"; 
+                                    if (fullBuild.Contains('-'))
+                                        continue;
 
-                                    if(dirOnly.Contains("Pre-Release"))
-                                        oldBranch = ProductToBranch("wow_beta");
-                                    else if (dirOnly.Contains("PTR"))
-                                        oldBranch = ProductToBranch("wowt");
-                                    else if (dirOnly.Contains("Retail"))
-                                        oldBranch = ProductToBranch("wow");
+                                    if (dirOnly.Contains("_PTR_"))
+                                    {
+                                        var splitBuild = fullBuild.Split('.');
+                                        fullBuild = dirOnly[0] + "." + splitBuild[1] + "." + splitBuild[2] + "." + splitBuild[3];
+                                    }
 
-                                    var maxID = current.Versions.Keys.Max();
-                                    current.Versions.Add(maxID + 1, new VersionEntry(int.Parse(build.Key.Split('.')[3]), oldBranch, build.Key));
-                                    Console.WriteLine("Added new archived build " + build.Key + " to manifest with branch " + oldBranch);
+                                    if (fullBuild == build.Key)
+                                    {
+                                        var oldBranch = "unknown";
+
+                                        if (dirOnly.Contains("Pre-Release"))
+                                            oldBranch = ProductToBranch("wow_beta");
+                                        else if (dirOnly.Contains("PTR"))
+                                            oldBranch = ProductToBranch("wowt");
+                                        else if (dirOnly.Contains("Retail"))
+                                            oldBranch = ProductToBranch("wow");
+
+                                        var maxID = current.Versions.Keys.Max();
+                                        current.Versions.Add(maxID + 1, new VersionEntry(int.Parse(build.Key.Split('.')[3]), oldBranch, build.Key));
+                                        Console.WriteLine("Added new archived build " + build.Key + " to manifest with branch " + oldBranch);
+                                    }
                                 }
                             }
                         }
@@ -186,11 +211,16 @@ namespace WoWTools.MinimapProcess
                     }
 
                     var mapsPath = Path.Combine(buildPath, "maps");
+                    var versionID = current.Versions.First(x => x.Value.FullBuild == build.Key).Key;
+
+                    mapsPerVersion.TryAdd(versionID, new List<string>());
 
                     foreach (var compiledMap in Directory.GetFiles(Path.Combine(buildPath, "compiled"), "*.png"))
                     {
                         var mapName = Path.GetFileNameWithoutExtension(compiledMap);
-                        if (!current.Maps.Any(x => x.Value.InternalName == mapName))
+                        mapsPerVersion[versionID].Add(mapName);
+
+                        if (!current.Maps.Any(x => x.Value.InternalName.Equals(mapName, StringComparison.OrdinalIgnoreCase)))
                         {
                             var maxID = current.Maps.Keys.Max();
 
@@ -198,12 +228,11 @@ namespace WoWTools.MinimapProcess
                             current.Maps.Add(maxID + 1, new MapEntry(mapName, mapName, int.TryParse(mapName, out var mapAsNumber) ? mapAsNumber : null, null, int.Parse(build.Key.Split('.')[3])));
                         }
 
-                        var mapID = current.Maps.First(x => x.Value.InternalName == mapName).Key;
+                        var mapID = current.Maps.First(x => x.Value.InternalName.Equals(mapName, StringComparison.OrdinalIgnoreCase)).Key;
 
                         if (!current.MapVersions.ContainsKey(mapID))
                             current.MapVersions.Add(mapID, []);
 
-                        var versionID = current.Versions.First(x => x.Value.FullBuild == build.Key).Key;
                         if (!current.MapVersions[mapID].ContainsKey(versionID))
                         {
                             var mapManifestFile = Path.Combine(mapsPath, mapName + ".json");
@@ -285,8 +314,47 @@ namespace WoWTools.MinimapProcess
                 var mapVersions = new Dictionary<int, Dictionary<int, MapVersionEntry>>(current.MapVersions);
                 foreach (var map in current.MapVersions)
                 {
-                    foreach(var version in map.Value)
+                    foreach (var version in map.Value)
                     {
+                        if (!Directory.Exists(Path.Combine(inputDir, version.Value.MD5)))
+                        {
+                            Console.WriteLine("!!! Warning: Version " + version.Key + " has a build MD5 that does not exist, removing..");
+                            mapVersions[map.Key].Remove(version.Key);
+                        }
+
+                        if(!current.Maps.ContainsKey(map.Key))
+                        {
+                            Console.WriteLine("!!! Warning: Map " + map.Key + " does not exist in manifest, removing version " + version.Key + " from it..");
+                            mapVersions[map.Key].Remove(version.Key);
+                            continue;
+                        }
+
+                        if (!mapsPerVersion[version.Key].Contains(current.Maps[map.Key].InternalName, StringComparer.Ordinal))
+                        {
+                            if (mapsPerVersion[version.Key].Contains(current.Maps[map.Key].InternalName, StringComparer.OrdinalIgnoreCase))
+                            {
+                                if (!current.MapVersions[map.Key][version.Key].Config.isLowerCase)
+                                {
+                                    var differentCaseVersion = mapsPerVersion[version.Key].FirstOrDefault(x => x.Equals(current.Maps[map.Key].InternalName, StringComparison.OrdinalIgnoreCase));
+                                    Console.WriteLine("!!! Warning: Map " + current.Maps[map.Key].InternalName + " has a version " + version.Key + " that is not in the mapsPerVersion list, but it exists with a different case (" + differentCaseVersion + ").");
+
+                                    if (differentCaseVersion!.Equals(current.Maps[map.Key].InternalName.ToLower()))
+                                    {
+                                        // just add it again with lowercase hackfix set
+                                        var currentBuildValue = current.MapVersions[map.Key][version.Key].MD5;
+                                        var newConfig = version.Value.Config with { isLowerCase = true };
+                                        current.MapVersions[map.Key][version.Key] = new MapVersionEntry(version.Key, currentBuildValue, newConfig);
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine("!!! Warning: Map " + current.Maps[map.Key].InternalName + " has a version " + version.Key + " that is not in the mapsPerVersion list, removing version..");
+                                mapVersions[map.Key].Remove(version.Key);
+                                continue;
+                            }
+                        }
+
                         if (!current.Versions.ContainsKey(version.Key))
                         {
                             Console.WriteLine("Warning: Version " + version.Key + " does not exist, removing..");

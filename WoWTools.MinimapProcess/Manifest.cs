@@ -13,5 +13,5 @@
 
     public record MapVersionEntry(int VersionID, string MD5, MapVersionConfig Config);
 
-    public record MapVersionConfig(int ResX, int ResY, int Zoom, int MinZoom, int MaxZoom, int MinX, int MinY);
+    public record MapVersionConfig(int ResX, int ResY, int Zoom, int MinZoom, int MaxZoom, int MinX, int MinY, bool isLowerCase = false);
 }
