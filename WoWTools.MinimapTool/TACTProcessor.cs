@@ -1,7 +1,8 @@
-﻿using DBCD.Providers;
+﻿using BLPSharp;
+using DBCD.Providers;
 using DBDefsLib;
 using NetVips;
-using SereniaBLPLib;
+using System.Reflection.Metadata;
 using System.Text.Json;
 using TACT.Net;
 using TACT.Net.Configs;
@@ -526,42 +527,42 @@ namespace WoWTools.MinimapTool
                         }
                         else
                         {
-                            using (var stream = new MemoryStream())
+                            var minimapStream = TACTRepo.RootFile.OpenFile(rootRecord.FileId, TACTRepo);
+
+                            if (minimapStream == null)
                             {
-                                var minimapStream = TACTRepo.RootFile.OpenFile(rootRecord.FileId, TACTRepo);
-
-                                if (minimapStream == null)
-                                {
-                                    Console.ForegroundColor = ConsoleColor.Red;
-                                    Console.WriteLine("Unable to extract minimap " + rootRecord.FileId);
-                                    Console.ResetColor();
-                                    continue;
-                                }
-
-                                new BlpFile(minimapStream).GetBitmap(0).Save(stream, System.Drawing.Imaging.ImageFormat.Png);
-
-                                try
-                                {
-                                    image = Image.NewFromBuffer(stream.ToArray());
-                                }
-                                catch (Exception e)
-                                {
-                                    Console.ForegroundColor = ConsoleColor.Red;
-                                    Console.WriteLine("Failed to create new image from BLP: " + e.Message);
-                                    Console.ResetColor();
-                                    continue;
-                                }
-
-                                if (image.Width != blpRes)
-                                {
-                                    if (blpRes == 512 && image.Width == 256)
-                                    {
-                                        image = image.Resize(2, Enums.Kernel.Nearest);
-                                    }
-                                }
-
-                                TileCache[rootRecord.CKey.ToString()] = image;
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.WriteLine("Unable to extract minimap " + rootRecord.FileId);
+                                Console.ResetColor();
+                                continue;
                             }
+
+                            var blp = new BLPFile(minimapStream);
+                            var pixels = blp.GetPixels(0, out var width, out var height);
+
+                            try
+                            {
+                                ARGBColor8.ConvertToBGRA(pixels);
+                                image = Image.NewFromMemory(pixels, width, height, 4, Enums.BandFormat.Uchar);
+                            }
+                            catch (Exception e)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.WriteLine("Failed to create new image from BLP: " + e.Message);
+                                Console.ResetColor();
+                                continue;
+                            }
+                        
+
+                            if (image.Width != blpRes)
+                            {
+                                if (blpRes == 512 && image.Width == 256)
+                                {
+                                    image = image.Resize(2, Enums.Kernel.Nearest);
+                                }
+                            }
+
+                            TileCache[rootRecord.CKey.ToString()] = image;
                         }
 
                         imageList.Add(image);
@@ -572,12 +573,11 @@ namespace WoWTools.MinimapTool
             var timer = System.Diagnostics.Stopwatch.StartNew();
 
             // Generate compiled map
-            Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Writing to output file..");
             var outpng = Path.Combine(outDir, "compiled", mapName + ".png");
             var compiled = Image.Arrayjoin(imageList.ToArray(), (max_x - min_x) + 1);
+            Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Writing to output file..");
             compiled.WriteToFile(outpng);
             Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Done, took " + timer.ElapsedMilliseconds + "ms");
-
             timer.Restart();
 
             // Generate tilesets
@@ -587,7 +587,15 @@ namespace WoWTools.MinimapTool
                 Directory.CreateDirectory(outdir);
 
             compiled.Dzsave(outdir, mapName, Enums.ForeignDzLayout.Google, ".png", background: [0, 0, 0, 0]);
+
             Console.WriteLine("[" + DateTime.UtcNow.ToString() + "]\t Done, took " + timer.ElapsedMilliseconds + "ms");
+
+            foreach (var img in TileCache.Values)
+                img.Dispose();
+            
+            TileCache.Clear();
+            compiled.Dispose();
+            imageList.Clear();
 
             timer.Stop();
         }

@@ -416,6 +416,8 @@ namespace WoWTools.MinimapProcess
                 "wow_classic_era" => "Retail (Classic Era)",
                 "wow_classic_era_ptr" => "PTR (Classic Era)",
                 "wow_classic_era_beta" => "Beta (Classic Era)",
+                "wow_classic_titan" => "Retail (Classic Titan)",
+                "wow_anniversary" => "Retail (Classic Anniversary)",
                 _ => throw new Exception("Unhandled product: " + product),
             };
         }

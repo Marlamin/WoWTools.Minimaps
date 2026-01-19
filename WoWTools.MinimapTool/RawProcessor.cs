@@ -1,6 +1,6 @@
 ﻿using DBDefsLib;
 using NetVips;
-using SereniaBLPLib;
+using BLPSharp;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -309,34 +309,33 @@ namespace WoWTools.MinimapTool
                         }
                         else
                         {
-                            using (var stream = new MemoryStream())
+                            var tileName = Path.Combine(mapDir, "map" + cur_x.ToString().PadLeft(2, '0') + "_" + cur_y.ToString().PadLeft(2, '0') + ".blp");
+
+                            var blp = new BLPFile(File.OpenRead(tileName));
+                            var pixels = blp.GetPixels(0, out var width, out var height);
+
+                            try
                             {
-                                var tileName = Path.Combine(mapDir, "map" + cur_x.ToString().PadLeft(2, '0') + "_" + cur_y.ToString().PadLeft(2, '0') + ".blp");
-
-                                new BlpFile(File.OpenRead(tileName)).GetBitmap(0).Save(stream, System.Drawing.Imaging.ImageFormat.Png);
-
-                                try
-                                {
-                                    image = Image.NewFromBuffer(stream.ToArray());
-                                }
-                                catch (Exception e)
-                                {
-                                    Console.ForegroundColor = ConsoleColor.Red;
-                                    Console.WriteLine("Failed to create new image from BLP: " + e.Message);
-                                    Console.ResetColor();
-                                    continue;
-                                }
-
-                                if (image.Width != blpRes)
-                                {
-                                    if (blpRes == 512 && image.Width == 256)
-                                    {
-                                        image = image.Resize(2, Enums.Kernel.Nearest);
-                                    }
-                                }
-
-                                TileCache[rootRecord.CKey.ToString()] = image;
+                                ARGBColor8.ConvertToBGRA(pixels);
+                                image = Image.NewFromMemory(pixels, width, height, 4, Enums.BandFormat.Uchar);
                             }
+                            catch (Exception e)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.WriteLine("Failed to create new image from BLP: " + e.Message);
+                                Console.ResetColor();
+                                continue;
+                            }
+
+                            if (image.Width != blpRes)
+                            {
+                                if (blpRes == 512 && image.Width == 256)
+                                {
+                                    image = image.Resize(2, Enums.Kernel.Nearest);
+                                }
+                            }
+
+                            TileCache[rootRecord.CKey.ToString()] = image;
                         }
 
                         imageList.Add(image);

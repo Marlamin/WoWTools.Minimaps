@@ -231,7 +231,7 @@ namespace WoWTools.MinimapTool
                             StartInfo = new ProcessStartInfo
                             {
                                 WorkingDirectory = buildBackupPath,
-                                FileName = Path.Combine(buildBackupPath, "BuildBackup.exe"),
+                                FileName = Path.Combine(buildBackupPath, "BuildBackup"),
                                 Arguments = $"forcebuild wow {build.build_config} {build.cdn_config}",
                                 UseShellExecute = false
                             }
@@ -300,7 +300,7 @@ namespace WoWTools.MinimapTool
             TACTProcessor.WarmUpIndexes(cdnConfigs);
 
             var lastRootKey = "";
-
+            var lastPatch = "";
             foreach (var build in builds)
             {
                 var buildConfigPath = TACTProcessor.MakeCDNPath(repoPath, "config", build.build_config);
@@ -338,16 +338,35 @@ namespace WoWTools.MinimapTool
                     }
                 }
 
+                if (build.build.build < 63976)
+                    continue;
+
                 var buildRootKey = GetRootKeyFromConfig(buildConfigPath);
                 Console.WriteLine(build.build + " (" + buildRootKey + ")");
 
                 if (lastRootKey != "" && buildRootKey != lastRootKey)
                     TACTProcessor.TryLoadVersionManifest(lastRootKey, true);
 
+                if (lastPatch != build.build.expansion + "." + build.build.major + "." + build.build.minor)
+                {
+                    // Patch changed, load the build before this one
+                    var currentIndex = builds.IndexOf(build);
+                    if (currentIndex > 0)
+                    {
+                        var previousBuild = builds[currentIndex - 1];
+                        var prevBuildRootKey = GetRootKeyFromConfig(TACTProcessor.MakeCDNPath(repoPath, "config", previousBuild.build_config));
+                        TACTProcessor.TryLoadVersionManifest(prevBuildRootKey, true);
+                    }
+                }
+
                 try
                 {
                     if (buildRootKey != lastRootKey)
+                    {
+                        Console.WriteLine("[" + DateTime.UtcNow.ToString() + "] [TACT] Processing build " + build.build + " (" + buildRootKey + ")");
                         TACTProcessor.ProcessBuild(build.build_config, build.cdn_config, build.product, build.build);
+
+                    }
                 }
                 catch (Exception e)
                 {
@@ -357,6 +376,7 @@ namespace WoWTools.MinimapTool
                     Console.ResetColor();
                 }
 
+                lastPatch = build.build.expansion + "." + build.build.major + "." + build.build.minor;
                 lastRootKey = buildRootKey;
             }
         }
